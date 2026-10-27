@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-27
+
+### Changed
+
+- A new banner image (`art/banner.jpg`): the editor and the booking basket from the demo. No code changes.
+
 ## [1.0.0] - 2026-10-27
 
 ### Added
