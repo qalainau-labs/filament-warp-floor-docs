@@ -98,7 +98,5 @@ must cease all use and destroy all copies of the Software.
 
 ---
 
-For licensing questions, open an issue in the public docs repository of the plugin you purchased
-(https://github.com/qalainau-labs/filament-warp-<name>-docs/issues, for example
-https://github.com/qalainau-labs/filament-warp-table-docs/issues).
-Do not post your license key or other private details in the issue.
+For licensing questions, ask at https://warpui.com/support.
+Do not post your license key or other private details in your question.
