@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-31
+
+### Added
+
+- `Floor::labelSize(min, max)` and `ElementType::labelSize(min, max)`: the size of place names in screen pixels, for
+  the whole floor or per type. `max` lets names grow beyond the default 12–13px as far as the place allows; `min` keeps
+  them readable when zoomed out (a name is hidden only when the place is lower than `min`), so codes like `A-05-3` on a
+  warehouse map can be read on a full-HD screen.
+- `Floor::labelFit()` and `ElementType::labelFit()` with the new `LabelFit` enum: `LabelFit::Shrink` makes a name that
+  is too wide smaller until all of it fits, instead of cutting it with "…" (`LabelFit::Truncate`, the default).
+- `placesOnScreen()` on the floor's Alpine component: where each place is on the screen (center and box in viewport
+  pixels, with its type, code, name, record and state), for browser tests, guided tours and screen recordings.
+
+Floors that do not call `labelSize()` or `labelFit()` look exactly as before.
+
 ## [1.2.0] - 2026-10-31
 
 ### Changed

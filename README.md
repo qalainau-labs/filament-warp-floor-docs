@@ -43,11 +43,11 @@ class Theater extends FloorPage
 ## Contents
 
 - [Why](#why) · [Features](#features) · [Requirements](#requirements) · [Installation](#installation)
-- Usage: [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) · [Element types and kinds](#element-types-and-kinds) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
+- Usage: [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
 - Venues: [Seat maps](#seat-maps) · [Shows](#shows) · [Price categories](#price-categories) · [The basket](#the-basket) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
 - [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage](#usage)
-- [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
+- [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
 
@@ -182,6 +182,41 @@ ElementType::make('room')
 When a type has no kind, it follows its shape (`->shape(Shape::Rect)` is a room, a point is a seat). Point sizes are set with `->size(14)`.
 
 `modifyRecordsQueryUsing()` limits which records can be listed, linked and loaded, for example to active ones. In a panel with [tenancy](#tenancy), the records are already limited to the current team.
+
+### The size of place names
+
+Names are drawn in screen pixels, so they stay sharp when you zoom. By default they are at most 12–13px, get smaller with the place, are cut with "…" when they do not fit, and are hidden when the place is small on screen. That suits rooms and desks, but on a warehouse map with codes like `A-05-3`, the codes are what people need to read. `labelSize()` and `labelFit()` change this for the whole floor or for one element type:
+
+```php
+use Qalainau\FilamentWarpFloor\Enums\LabelFit;
+
+public function floor(Floor $floor): Floor
+{
+    return $floor
+        ->labelSize(min: 9)                          // every type: never smaller than 9px
+        ->elementTypes([
+            ElementType::make('rack')
+                ->kind(Kind::Room)
+                ->model(Rack::class)
+                ->titleAttribute('code')
+                ->labelSize(min: 11, max: 22)        // rack codes: 11px to 22px
+                ->labelFit(LabelFit::Shrink),         // show the whole code, smaller, instead of "A-0…"
+            ElementType::make('desk')->kind(Kind::Desk), // 9px minimum from the floor, cut with "…"
+        ]);
+}
+```
+
+- **`labelSize(?int $min = null, ?int $max = null)`** — on `Floor` (every type) and on `ElementType` (one type; what it leaves `null` comes from the floor). Both are screen pixels and at least 1, and `$min` may not be larger than `$max`.
+  - **`$max`**: names grow up to this size as far as the place's height allows (about 70% of its height when it shows only its name). Without it, the default sizes are kept.
+  - **`$min`**: names are never drawn smaller than this, also when you zoom out. Where the default would hide a name because the place is narrow, it is drawn as long as the place is at least `$min` pixels high. When the place gets lower than `$min` on screen, the name is hidden, and it comes back when you zoom in.
+- **`labelFit(LabelFit|string|null $fit)`** — what to do when a name is wider than its place: `LabelFit::Truncate` (`'truncate'`, the default) keeps the size and ends the name with "…"; `LabelFit::Shrink` (`'shrink'`) makes it smaller until all of it fits. A name that would have to be smaller than `$min` (6px without `$min`) is hidden rather than cut, so a code is never shown half. On its own, `labelFit()` keeps the default sizes.
+
+Things to know:
+
+- Nothing changes until you call one of them: plans look exactly as before.
+- It applies to the names inside places: rooms, areas, desks, tables, parking bays, shapes, furniture, seat numbers and places without a kind. Text elements keep their own font size, and section and row names are not affected.
+- Rooms and areas still show their capacity under the name only when they are tall enough; a larger name leaves less room for it.
+- To read codes on a large plan, `$min` is usually the setting you want, together with `LabelFit::Shrink` for long codes. Very small places on a zoomed-out plan still hide their names, because a name larger than its place would cover the neighbouring places.
 
 ### Bookings and states
 
@@ -948,6 +983,24 @@ public function floor(Floor $floor): Floor
 | Shift + arrow keys | Move the plan |
 
 The mouse wheel scrolls the page until the plan is clicked; then it moves the plan. Ctrl/Cmd + wheel or a pinch zooms at any time. On phones and tablets one finger scrolls the page and two fingers move and zoom the plan; a tap picks a place and a long press opens its menu. While zoomed in, the small map in the corner shows where you are; click or drag it to move. Screen readers get a list of the bookable places in reading order after the plan.
+
+## Where places are on the screen (JavaScript)
+
+The plan is drawn on a canvas, so its places are not elements you can select in the page. For browser tests, guided tours and screen recordings, the floor tells you where each place is on the screen:
+
+```js
+const floor = Alpine.$data(document.querySelector('.fi-warp-flr'))
+
+const rack = floor.placesOnScreen().find((place) => place.code === 'A-05-3')
+// { id: 12, type: 'rack', kind: 'room', code: 'A-05-3', label: 'A-05-3', record: '41', state: 'low',
+//   x: 812, y: 436, left: 790, top: 424, width: 44, height: 24, visible: true }
+```
+
+With Playwright, `await page.mouse.click(rack.x, rack.y)` clicks that rack.
+
+- **`placesOnScreen({ all = false } = {})`** — the places (elements with a type) whose center is in view. `x` and `y` are the center and `left`, `top`, `width`, `height` the box around the place, in the same viewport pixels as `getBoundingClientRect()`. `record` is the key of the linked record as a string (`null` when not linked), and `state` the state shown now. `{ all: true }` also returns places outside the view (`visible: false`) and decorations without a type (walls, furniture).
+- It reads the plan as it is drawn now and never moves it. After zooming, panning, switching plans or resizing the window, call it again. Before the plan is drawn it returns `[]`.
+- With several floors on one page, pick the one you want with `document.querySelectorAll('.fi-warp-flr')[n]`.
 
 ## Limitations
 
