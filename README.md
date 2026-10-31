@@ -224,7 +224,7 @@ $floor
 
 `stateUsing()` also works without bookings, for example to color warehouse shelves by stock level.
 
-Above the plan, people pick **the day**: a strip of the next seven days (today first, ◀ ▶ for other weeks) and a calendar for days further ahead. The plan then shows each place for that whole day — free, partly booked or booked within business hours — which is what someone booking a desk or a parking bay wants to know. It appears when a type has bookings and there are no [shows](#shows):
+Above the plan, people pick **the day**: a strip of the next seven days (today first, ◀ ▶ for other weeks) and a calendar for days further ahead. The plan then shows each place for that whole day — free, partly booked or booked within business hours — which is what someone booking a desk or a parking bay wants to know. It appears on plans that have at least one place of a type with bookings, when there are no [shows](#shows). A plan with only places without bookings — a warehouse colored by stock next to your office floors — shows no day strip, and switching back to an office floor brings the strip back with the day you picked. `timePicker()` decides it for every plan instead: `->timePicker()` shows the strip on all plans (for example when your own `stateUsing()` depends on the day), `->timePicker(false)` hides it everywhere:
 
 ```php
 $floor
@@ -917,6 +917,7 @@ People who open a floor for the first time often don't know that they can drag, 
 The guide changes with what is on screen:
 
 - **Booking** (an office, a car park): how to move and zoom, how to see and book a place, the keyboard, and the colors of the states on this plan.
+- **Plans without bookings** (a warehouse or a factory floor colored by `stateUsing()`): how to move and zoom, how to find a place and see its details and actions, and the keyboard — without any lines about booking. This is decided per plan, so on a floor that has both, the guide follows the plan that is open.
 - **Seat maps** (plans with price categories): how to put seats in the basket, standing areas and "Best seats", and the colors of the price categories, sold seats and seats in the basket.
 - **Editor** (only on editable floors): how to place things, walls, doors and windows, unplaced records, selecting, moving, resizing and rotating, and every shortcut. In the editor, the panel on the right also says what to do first ("Pick something under What to place …") and, once something is picked, how to place it — so this works on touch screens too, where there is no hover.
 

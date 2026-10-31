@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-31
+
+### Changed
+
+- The day strip (and the time picker of `hourly()` floors) is decided per plan: a plan without places of a type with
+  bookings — a warehouse next to your office floors — no longer shows it. `->timePicker()` shows it on every plan as
+  before, and `->timePicker(false)` still hides it everywhere.
+- On plans without bookings, "How to use" explains how to find a place and see its details instead of how to book, and
+  the side panel no longer asks people to click a place to book it.
+
+### Removed
+
+- The unused `panel.more` translation (the side panel shows record actions as buttons since 1.1.0).
+
 ## [1.1.0] - 2026-10-31
 
 ### Added
