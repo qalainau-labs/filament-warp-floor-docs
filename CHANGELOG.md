@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-31
+
+### Added
+
+- `ElementType::panelSchema()`: show your own infolist (text, tables of related records, sections) in the side panel
+  when a place is clicked, for types with or without bookings — for example what is on a warehouse rack.
+  `ElementType::panelView()` renders a Blade view instead. The content is rendered again after bookings, record actions
+  and polling, and never shows a previously selected place.
+- `Floor::panelWidth()`: a wider side panel, for example to show `RepeatableEntry::table()` as a table.
+
+### Changed
+
+- The side panel lists the type's `recordActions()` as buttons instead of behind "More", so an action is one click
+  away.
+
+### Fixed
+
+- The side panel no longer shows an older answer when the same place is read again twice in quick succession.
+
 ## [1.0.1] - 2026-10-27
 
 ### Changed

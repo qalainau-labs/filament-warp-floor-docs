@@ -46,7 +46,7 @@ class Theater extends FloorPage
 - Usage: [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) · [Element types and kinds](#element-types-and-kinds) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
 - Venues: [Seat maps](#seat-maps) · [Shows](#shows) · [Price categories](#price-categories) · [The basket](#the-basket) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
-- [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage](#usage)
+- [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage](#usage)
 - [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
@@ -401,7 +401,7 @@ On the box office, a form that books for someone else usually picks the customer
 
 ### The side panel
 
-On plans without price categories, clicking a place opens a panel on the right with its kind, name and where it is, its capacity and features, who has booked it, its schedule for the chosen day ("Schedule · Tomorrow") as a bar and a list, and buttons to book it ("Book for tomorrow", or "Book 19:00–21:00" on an [hourly](#bookings-and-states) floor), check in and see more actions. A place that is booked for the whole chosen time has no "Book" button, and on a day that is only partly booked the panel lists who has it when instead of naming one person. On narrow screens the panel moves below the plan.
+On plans without price categories, clicking a place opens a panel on the right with its kind, name and where it is, its capacity and features, who has booked it, its schedule for the chosen day ("Schedule · Tomorrow") as a bar and a list, and buttons to book it ("Book for tomorrow", or "Book 19:00–21:00" on an [hourly](#bookings-and-states) floor), check in and run its [record actions](#menus-and-tooltips). Add your own content to it with [`panelSchema()`](#your-own-content-in-the-side-panel). A place that is booked for the whole chosen time has no "Book" button, and on a day that is only partly booked the panel lists who has it when instead of naming one person. On narrow screens the panel moves below the plan.
 
 **Book a free time from the schedule.** Click a free (green) part of the schedule bar and the booking form opens for that time: from the half hour you clicked, for the type's `bookingLength()` (a room's hour), or up to the next booking when the type has none (a desk for the rest of the day). On an [hourly](#bookings-and-states) floor it is the `hourly()` length. A booked part or a time that has passed says so instead.
 
@@ -557,9 +557,63 @@ $floor
 
 The party size goes into the booking source's `people()` column. `onSeated(fn (Model $party, Model $booking) => ...)` replaces the default (deleting the party), and `modifyQueryUsing()` narrows the list (today only, for example). In a panel with tenancy, the list is scoped to the team like the bookings.
 
+## Your own content in the side panel
+
+When someone clicks a place, the side panel shows its name, state and (for types with bookings) its schedule. To show more about the record behind the place — what is on a warehouse rack, a machine's last service, a room's equipment — give the element type an infolist schema with `panelSchema()`. It works the same for types with and without bookings, so a plan that only colors places by state (a warehouse, a factory floor) gets a useful panel too.
+
+```php
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
+
+public function floor(Floor $floor): Floor
+{
+    return $floor
+        ->panelWidth('38rem')                    // optional: room for a table (see below)
+        ->elementTypes([
+            ElementType::make('rack')
+                ->model(Rack::class)
+                ->shape(Shape::Rect)
+                ->titleAttribute('code')
+                ->stateUsing(fn (Rack $record): string => $record->status()->value)
+                ->panelSchema([
+                    TextEntry::make('aisle'),
+                    RepeatableEntry::make('products')
+                        ->table([
+                            TableColumn::make('SKU'),
+                            TableColumn::make('Product'),
+                            TableColumn::make('Qty')->alignEnd(),
+                        ])
+                        ->schema([
+                            TextEntry::make('sku'),
+                            TextEntry::make('name'),
+                            TextEntry::make('stock_quantity')->numeric()->alignEnd(),
+                        ]),
+                ])
+                ->recordActions([
+                    Action::make('restock')->action(fn (Rack $record) => $record->restock()),
+                ]),
+        ]);
+}
+```
+
+- **`panelSchema(array|Closure|null $components)`** — infolist components (`TextEntry`, `IconEntry`, `RepeatableEntry`, `Section`, `Grid` …). The schema's record is the record linked to the place, so `TextEntry::make('aisle')` reads `$rack->aisle` and closures can type-hint the record (`fn (Rack $record) => ...`). A closure for the whole schema receives `$record` (`null` when the place is not linked to a record) and `$element` (the `FloorElement`): `->panelSchema(fn (?Rack $record, FloorElement $element): array => [...])`. An existing method that returns a schema array, such as one you already use in a modal, can be passed as is.
+- **`panelView(string|Closure|null $view)`** — your own Blade view instead of a schema. It receives `$record` and `$element`. A closure returns the view name, or `null` to show nothing.
+- **`Floor::panelWidth(int|string|Closure|null $width)`** — the width of the side panel (an integer is pixels; the default is `20rem`). Filament shows `RepeatableEntry::table()` as a table only when it has at least `36rem`; in a narrower panel each row is stacked as label and value, which is fine for a few fields. The panel never takes more than half of the floor's width, and on narrow screens it sits below the plan at full width.
+
+Where it appears: under the place's name, state, features and the person who booked it, and above the day's schedule and the "Book" button. The [record actions](#menus-and-tooltips) of the type are listed as buttons at the bottom of the panel.
+
+The content is rendered on the server each time the panel opens, and again whenever the floor re-reads the states (after a booking, after a record action, when polling or when the time changes). So after a "Restock" action the panel shows the new quantities, and picking another place never shows the previous place's content, even when the answers arrive out of order.
+
+Things to know:
+
+- Actions inside the schema (an entry's `suffixAction()`, a `Section`'s header actions) are not supported; put them in `recordActions()`, which the panel shows as buttons.
+- The panel is not shown on plans with [price categories](#price-categories) (the basket takes its place), on a floor with `sidePanel(false)`, or in the editor.
+- Keep the schema light: it runs on every click. Eager load what a `RepeatableEntry` needs inside its `state()` closure (`$record->locations()->with('products')->get()`).
+
 ## Menus and tooltips
 
-`recordActions()` adds Filament actions to the right-click menu (press and hold on touch screens) and to "More" in the side panel. They receive the place's record; labels and visibility are evaluated for that record when the menu opens. After an action, the plan is reloaded, so a renamed record shows its new name.
+`recordActions()` adds Filament actions to the right-click menu (press and hold on touch screens) and as buttons at the bottom of the side panel. They receive the place's record; labels and visibility are evaluated for that record when the menu opens. After an action, the plan is reloaded, so a renamed record shows its new name.
 
 ```php
 ElementType::make('desk')
