@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-02
+
+### Fixed
+
+- Translations read more naturally. Japanese calls a floor of a building 「フロア」 everywhere (it mixed 「階」 and
+  「フロア」); French, Spanish, Brazilian Portuguese and Chinese name "Let us pick the best seats" the way ticket sites
+  do; Korean and Taiwanese Chinese use the words offices use for a desk island; Spanish speaks to the user with tú
+  everywhere (it mixed usted and tú), like the demos; and a few German and French terms are now the same on every
+  screen.
+
 ## [1.3.0] - 2026-10-31
 
 ### Added
