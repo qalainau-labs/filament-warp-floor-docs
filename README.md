@@ -1258,7 +1258,7 @@ public function floor(Floor $floor): Floor
 | + / − / 0 | Zoom in, zoom out, fit the plan |
 | Shift + arrow keys | Move the plan |
 
-The mouse wheel scrolls the page until the plan is clicked; then it moves the plan. Ctrl/Cmd + wheel or a pinch zooms at any time. On phones and tablets one finger scrolls the page and two fingers move and zoom the plan; a tap picks a place and a long press opens its menu. While zoomed in, the small map in the corner shows where you are; click or drag it to move. Screen readers get a list of the bookable places in reading order after the plan.
+The mouse wheel scrolls the page until the plan is clicked; then it moves the plan. Ctrl/Cmd + wheel or a pinch zooms at any time. On phones and tablets one finger scrolls the page and two fingers move and zoom the plan; a tap picks a place and a long press opens its menu. While zoomed in, the small map in the corner shows where you are; click or drag it to move. Screen readers get a list of the bookable places in reading order after the plan. On a plan with the side panel, Enter on a place in that list goes to the panel's main button. After "Move" on a booking (or "Seat" on a waiting party), the focus goes to the list. Pick the new place with the arrow keys and press Enter to move the booking there. Escape stops the move.
 
 ## Where places are on the screen (JavaScript)
 

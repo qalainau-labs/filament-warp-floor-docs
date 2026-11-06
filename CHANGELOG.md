@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-11-06
+
+### Fixed
+
+- Keyboard users can move a booking on a plan with the side panel. After "Move", Enter on a place in the list of
+  places went back to the panel instead of moving the booking there. The focus now goes to the list after "Move" (or
+  "Seat" for a waiting party), and Enter moves the booking (or seats the party) on the picked place.
+
 ## [1.4.3] - 2026-11-06
 
 ### Fixed
