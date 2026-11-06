@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-06
+
+### Added
+
+- Instructions for AI coding assistants (Claude Code, Cursor, Codex) through [Laravel Boost](https://laravel.com/docs/boost):
+  a guideline that Boost adds to `CLAUDE.md` and `AGENTS.md`, and the `warp-floor-development` skill for building
+  floors, refusing bookings with the built-in rules and testing them. Select `qalainau/filament-warp-floor` in
+  `php artisan boost:install`, or add it to `"packages"` in `boost.json`. See
+  [AI coding assistants (Laravel Boost)](README.md#ai-coding-assistants-laravel-boost).
+
+- `php artisan warp:assign-tenant "App\Models\Team" 1 [--dry-run]`: gives the plans and saved templates that have no
+  tenant (made before the panel had tenancy) to one tenant, in every installed Warp plugin's tables at once. Rows of
+  other tenants are not touched, and everything is changed in one transaction. See "Adding tenancy to an app that
+  already has plans" in the README.
+- The text of the places is in the page: each button of the hidden list after the plan has the place's name in its own
+  `<span>` and `data-id`, `data-type`, `data-code`, `data-label`, `data-record` and `data-state` (the same values as
+  `placesOnScreen()`). Playwright's `getByText()`, `innerText` and screen readers find the places drawn on the canvas.
+  In the editor the list follows unsaved changes (placed, renamed and deleted places).
+- `ElementType::statesUsing(fn (Collection $records, Collection $bookings, Window $window): array)`: works out the
+  states of all the places of a type on the plan in one call (record key => state name), for states that come from a
+  total such as stock against a reorder point. It wins over `stateUsing()`; records it leaves out or returns `null` for
+  are decided by `stateUsing()`, `unavailableWhen()` and the bookings, as before. It runs again on every refresh, so no
+  old state stays. See "Working out the states of all places at once" in the README.
+- Plans can be linked to one of your records: `FloorPlan::owner()` (a morph relation on new `owner_type` and
+  `owner_id` columns), so `$floor->plans(FloorPlan::query()->whereMorphedTo('owner', $location))` finds a plan even
+  after it is renamed. A plan added from an open plan, and a floor copied on the venues page, get the same owner.
+  **Run `php artisan migrate`** after updating. See "Linking a plan to one of your records" in the README.
+- README: "Testing with tenancy" (another team's IDs are treated as not there, not as an error; how to check what a
+  team sees) and "The text of the places in the page".
+
+### Changed
+
+- `Floor::panelWidth()` now wins over the limit of half the floor's width: the panel gets the width you set and the
+  plan becomes narrower. When the plan would be narrower than 20rem beside it, the panel moves below the plan at full
+  width. Without `panelWidth()` nothing changes.
+
 ## [1.3.1] - 2026-11-02
 
 ### Fixed

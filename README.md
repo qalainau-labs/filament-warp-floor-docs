@@ -42,12 +42,12 @@ class Theater extends FloorPage
 
 ## Contents
 
-- [Why](#why) · [Features](#features) · [Requirements](#requirements) · [Installation](#installation)
+- [Why](#why) · [Features](#features) · [Requirements](#requirements) · [Installation](#installation) ([AI coding assistants](#ai-coding-assistants-laravel-boost))
 - Usage: [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
 - Venues: [Seat maps](#seat-maps) · [Shows](#shows) · [Price categories](#price-categories) · [The basket](#the-basket) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
 - [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage](#usage)
-- [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
+- [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) ([Testing with tenancy](#testing-with-tenancy)) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
 
@@ -101,6 +101,36 @@ php artisan filament:assets
 The migration creates `warp_floor_plans`, `warp_floor_elements` and `warp_floor_favorites`. Your tables are not changed. To edit the migration, publish it with `php artisan vendor:publish --tag=filament-warp-floor-migrations`. Publish it before you run `php artisan migrate` for the first time: Warp Floor then runs your copy instead of its own. If the tables already exist, change them with a migration of your own instead.
 
 > Run `php artisan filament:assets` again after every update of the package.
+>
+> Also run `php artisan migrate` after updating: new versions can add columns (for example `owner_type` and `owner_id` on `warp_floor_plans`). Those migrations run from the package even when you published the earlier ones.
+
+### AI coding assistants (Laravel Boost)
+
+Warp Floor ships instructions for AI coding assistants such as Claude Code, Cursor and Codex. If your app uses
+[Laravel Boost](https://laravel.com/docs/boost), the assistant learns how to use Warp Floor from them: which classes to
+extend, how places are linked to your records, which booking rules are built in, what is easy to get wrong, and how to
+test a floor.
+
+- **Guidelines** (`resources/boost/guidelines/core.md`): a short summary that Boost adds to `CLAUDE.md`,
+  `AGENTS.md` and the other agent files. It also points the assistant to this README in `vendor/`, so it reads the
+  documentation of the version you have installed instead of guessing.
+- **Skill** `warp-floor-development` (`resources/boost/skills/`): the steps for adding a floor (including plans and
+  places in a seeder), refusing bookings, coloring places, and writing feature and browser tests. The assistant loads
+  it when it works on a floor.
+
+Boost does not add guidelines of other vendors' packages on its own. When `php artisan boost:install` asks
+"Which third-party AI guidelines/skills would you like to install?", select `qalainau/filament-warp-floor`. To do
+it without the question, add the package to `boost.json` and run the command again:
+
+```json
+{
+    "packages": ["qalainau/filament-warp-floor"]
+}
+```
+
+```bash
+php artisan boost:install --guidelines --skills -n
+```
 
 ## Usage
 
@@ -149,6 +179,37 @@ $floor
 ```
 
 Opening a floor page with `?edit=1` starts the editor right away (the venues page links there).
+
+#### Linking a plan to one of your records
+
+When a plan belongs to something in your app — one warehouse map per storage location, one floor plan per building — link it with the `owner` morph relation instead of finding it by name (names change) or by `group`. Warp Floor stores the link in `owner_type` and `owner_id` and never reads the record itself.
+
+```php
+use App\Models\Location;
+use Qalainau\FilamentWarpFloor\Models\FloorPlan;
+
+// when you create the plan
+$plan = new FloorPlan(['name' => $location->name, 'group' => 'Warehouses']);
+$plan->owner()->associate($location);
+$plan->save();
+
+// find the plan of a location
+$plan = FloorPlan::query()->whereMorphedTo('owner', $location)->first();
+
+// a page that shows only that location's plans
+$floor->plans(FloorPlan::query()->whereMorphedTo('owner', $location));
+
+// read it back
+$plan->owner;   // the Location, or null
+```
+
+Good to know:
+
+- `owner_id` is a string column, so records with UUID or ULID keys work too. If you use `Relation::enforceMorphMap()`, the alias is stored, as with any morph relation.
+- The owner is kept when the plan is renamed, edited in the editor, or filled from a [template](#templates) (applying a template replaces the elements and the `template` column, not the owner).
+- A plan added on the floor page with "New floor" gets the owner of the plan that was open, and a floor added on the [venues page](#venues-and-floors) as a copy of another floor gets that floor's owner. So a page narrowed with `whereMorphedTo('owner', …)` still shows the new plan. A blank floor added on the venues page, a new venue, and a plan created while no plan was open have no owner; set it in your own code if you need one.
+- Ownership is separate from [tenancy](#tenancy). The floor still shows only the current tenant's plans, so `whereMorphedTo('owner', $location)` never shows a plan of another team, even if it points at the same record.
+- Deleting the owner record does not delete its plans. Delete them yourself (for example in a model event), or they stay with an `owner` that returns `null`.
 
 ### Element types and kinds
 
@@ -258,6 +319,45 @@ $floor
 ```
 
 `stateUsing()` also works without bookings, for example to color warehouse shelves by stock level.
+
+#### Working out the states of all places at once
+
+`stateUsing()` is called once per place. When a state comes from a total — stock on hand against a reorder point, open orders per rack — that means one query per place, or a cache of your own. `statesUsing()` is called **once per type** with all the records on the plan, and returns their states keyed by the record's key:
+
+```php
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
+use Qalainau\FilamentWarpFloor\Window;
+
+ElementType::make('rack')
+    ->model(Rack::class)
+    ->statesUsing(function (Collection $records, SupportCollection $bookings, Window $window): array {
+        // one query for every rack on the plan
+        $stock = Stock::query()
+            ->whereIn('rack_id', $records->modelKeys())
+            ->selectRaw('rack_id, sum(quantity) as quantity, sum(reorder_point) as reorder_point')
+            ->groupBy('rack_id')
+            ->get()
+            ->keyBy('rack_id');
+
+        return $records->mapWithKeys(fn (Rack $rack): array => [
+            $rack->id => match (true) {
+                ! $stock->has($rack->id) => 'empty',
+                $stock[$rack->id]->quantity <= $stock[$rack->id]->reorder_point => 'reorder',
+                default => null,   // decide the usual way
+            },
+        ])->all();
+    });
+```
+
+- **`$records`** — the records linked to places of this type on the plan, each once. For the tooltip and the side panel of one place it holds only that place's record, so keep the query keyed by `$records`, not by everything in the table.
+- **`$bookings`** — the bookings in the time range, keyed by the record's key (an empty collection for records without bookings). **`$window`** — the time range on screen. Ask only for the arguments you need, by name.
+- **The return value** — an array (or a collection) of record key ⇒ state name. A record that is missing from it or whose state is `null` is decided the usual way: `stateUsing()` first, then `unavailableWhen()`, then the bookings. Keys of records that are not in `$records` are ignored.
+- **Order** — `statesUsing()` wins over `stateUsing()` when a type has both, so you can move the common cases to one query and keep `stateUsing()` for the rest.
+- **Fresh values** — it runs again every time the floor reads the states: when the page opens, when another plan or day is picked, after a booking, a record action or a save, and when polling. Warp Floor keeps nothing between those calls, so a changed stock level shows on the next refresh.
+- It needs `model()`; places that are not linked to a record keep the default states.
+
+There is no `tooltipsUsing()`: the tooltip is fetched for one place when the pointer rests on it, so `tooltipUsing()` already runs once per request.
 
 Above the plan, people pick **the day**: a strip of the next seven days (today first, ◀ ▶ for other weeks) and a calendar for days further ahead. The plan then shows each place for that whole day — free, partly booked or booked within business hours — which is what someone booking a desk or a parking bay wants to know. It appears on plans that have at least one place of a type with bookings, when there are no [shows](#shows). A plan with only places without bookings — a warehouse colored by stock next to your office floors — shows no day strip, and switching back to an office floor brings the strip back with the day you picked. `timePicker()` decides it for every plan instead: `->timePicker()` shows the strip on all plans (for example when your own `stateUsing()` depends on the day), `->timePicker(false)` hides it everywhere:
 
@@ -634,7 +734,9 @@ public function floor(Floor $floor): Floor
 
 - **`panelSchema(array|Closure|null $components)`** — infolist components (`TextEntry`, `IconEntry`, `RepeatableEntry`, `Section`, `Grid` …). The schema's record is the record linked to the place, so `TextEntry::make('aisle')` reads `$rack->aisle` and closures can type-hint the record (`fn (Rack $record) => ...`). A closure for the whole schema receives `$record` (`null` when the place is not linked to a record) and `$element` (the `FloorElement`): `->panelSchema(fn (?Rack $record, FloorElement $element): array => [...])`. An existing method that returns a schema array, such as one you already use in a modal, can be passed as is.
 - **`panelView(string|Closure|null $view)`** — your own Blade view instead of a schema. It receives `$record` and `$element`. A closure returns the view name, or `null` to show nothing.
-- **`Floor::panelWidth(int|string|Closure|null $width)`** — the width of the side panel (an integer is pixels; the default is `20rem`). Filament shows `RepeatableEntry::table()` as a table only when it has at least `36rem`; in a narrower panel each row is stacked as label and value, which is fine for a few fields. The panel never takes more than half of the floor's width, and on narrow screens it sits below the plan at full width.
+- **`Floor::panelWidth(int|string|Closure|null $width)`** — the width of the side panel (an integer is pixels, a string any CSS length; the default is `20rem`). Filament shows `RepeatableEntry::table()` as a table only when it has at least `36rem`; in a narrower panel each row is stacked as label and value, which is fine for a few fields.
+  - Without `panelWidth()`, the panel never takes more than half of the floor's width.
+  - With `panelWidth()`, the panel gets the width you asked for and the plan becomes narrower. When the plan would be narrower than `20rem` next to it (or the width is wider than the whole floor), the panel moves below the plan and takes the full width. On screens narrower than `48rem` it is always below the plan at full width.
 
 Where it appears: under the place's name, state, features and the person who booked it, and above the day's schedule and the "Book" button. The [record actions](#menus-and-tooltips) of the type are listed as buttons at the bottom of the panel.
 
@@ -940,10 +1042,72 @@ A `BelongsTo` or `MorphTo` relationship is filled in on new bookings; a `Belongs
 - The records you place need the relationship. If the model of an `ElementType` has no `team()` relationship (and no other name is given), Warp Floor throws an exception instead of offering every team's records; it says which relationship is missing. Add the relationship, name it with `tenantOwnershipRelationshipName()`, or call `scopeToTenant(false)` when the records are shared by every team. A booking model without the relationship is not scoped by it (its bookings still only show on the team's plans); when you name a relationship that it does not have, Warp Floor throws an exception too.
 - `modifyRecordsQueryUsing()` and `modifyQueryUsing()` still work and run after the team scope, for extra filters.
 - Bookings made before you added `team_id` have no team, so a team no longer sees them. Fill the column for existing rows (for example from the place they belong to) before turning tenancy on.
-- Plans made before the panel had tenancy have no tenant and are not shown to any team; they are shown only in panels without tenancy. Give them one with `$plan->tenant()->associate($team)->save()`.
+- Plans made before the panel had tenancy have no tenant and are not shown to any team; they are shown only in panels without tenancy. Give them to a team with `php artisan warp:assign-tenant` (see [Adding tenancy to an app that already has plans](#adding-tenancy-to-an-app-that-already-has-plans)), or one by one with `$plan->tenant()->associate($team)->save()`.
 - In a team panel before the team is known, no plan is shown. Outside a panel (a job, a command) plans are not filtered.
 - A page outside the panel (a public booking page, a job, a command) has no current tenant. Pass the plans yourself with `plans(FloorPlan::query()->whereMorphedTo('tenant', $team))`, and scope your own queries.
 - Policies (`view`, `update`, `create`, `delete` on `FloorPlan` and the booking model) work as before and are checked on top of the team.
+
+### Adding tenancy to an app that already has plans
+
+When you turn on tenancy in an app that already has floors, the plans and saved templates you made before have no tenant, so no team sees them. One command gives them all to one team:
+
+```bash
+php artisan warp:assign-tenant "App\Models\Team" 1 --dry-run   # only count them
+php artisan warp:assign-tenant "App\Models\Team" 1             # give them to team 1
+```
+
+- The first argument is your tenant model class (or its morph alias), the second the key of the tenant. The command stops with an error when there is no such model or tenant, and changes nothing.
+- It only changes rows whose `tenant_type` and `tenant_id` are both empty. Rows that already belong to a team are never touched.
+- It looks at the tables of every Warp plugin installed in the app that has these columns, not only Warp Floor's (`warp_floor_plans` and `warp_floor_templates`; for example Warp Pivot's saved views too), and prints how many rows of each table have no tenant. With `--dry-run` it stops there.
+- Everything is changed in one database transaction. If a row would break a unique index together with a row the team already has, nothing is changed at all; the command says so, and you can rename or delete one of them and run it again.
+- `custom` in place of a model class is for tenants that are only a key (no model), which some Warp plugins support.
+- The command only covers Warp's own tables. Your own models (desks, rooms, bookings) need their `team_id` filled by you, as described above.
+
+### Testing with tenancy
+
+In a test, act as a user, set the panel and the tenant, and open your floor page with Livewire, as Filament's own tests do. What the floor shows is then what that team sees.
+
+**Another team's plan or place is "not there", not an error.** When you pass the ID of a plan or element of another team, Warp Floor answers as if it did not exist: the plan list leaves it out, `?plan=` opens the team's first plan instead, and the calls the browser makes return "gone", `null` or an empty list. Nothing throws, so do not write `expect(...)->toThrow()` for reading. Only the calls that would change another team's plan (saving the editor, backgrounds, check-in, cancelling and moving bookings with that plan's ID) stop with a 404 (`NotFoundHttpException`), as if the plan had been deleted.
+
+```php
+use Filament\Facades\Filament;
+use Livewire\Livewire;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
+it('shows a team only its own plans and places', function () {
+    $this->actingAs($user);
+    Filament::setCurrentPanel('app');
+    Filament::setTenant($tokyo);
+
+    $component = Livewire::test(Office::class)->assertOk();
+    $page = $component->instance();
+    $floor = $page->getWarpFloor();
+
+    // The plans the team can switch to (id, name, group)
+    expect(collect($floor->getPlansPayload())->pluck('name')->all())->toBe(['Tokyo 3F'])
+        ->and($floor->findPlan($osakaPlan->id))->toBeNull();
+
+    // The state of each place on a plan: element ID => state name
+    expect((array) $page->warpFloorStates($tokyoPlan->id)['states'])->toMatchArray([$desk->id => 'available']);
+
+    // Another team's plan and places: "not there"
+    expect($page->warpFloorStates($osakaPlan->id))->toMatchArray(['gone' => true])
+        ->and($page->warpFloorLoadPlan($osakaPlan->id))->toMatchArray(['gone' => true])
+        ->and($page->warpFloorPanel($osakaDesk->id))->toBeNull()     // the side panel
+        ->and($page->warpFloorDetails($osakaDesk->id))->toBeNull()   // the tooltip
+        ->and($page->warpFloorSearch('Osaka'))->toBe([]);
+
+    // Changing another team's plan: 404
+    expect(fn () => $page->warpFloorSavePlan($osakaPlan->id, [], 1))->toThrow(NotFoundHttpException::class);
+
+    // The plan data is in the page's HTML: names of the team's plans and places are there, the other team's are not
+    $component->assertSee('Tokyo 3F')->assertSee('Desk 12')->assertDontSee('Osaka 3F');
+});
+```
+
+- `warpFloorStates()` returns `states` as an object, so cast it with `(array)` before comparing.
+- `warpFloorPanel($elementId)` returns the side panel (`title`, `content` as HTML, actions), so you can check what a team reads about a place: `expect($page->warpFloorPanel($desk->id)['content'])->toContain(e($product->sku))`.
+- `assertSee()` finds plan and place names because the plan data for the browser is part of the page. It cannot tell the state of a place or whether it is on the screen; use `warpFloorStates()` for states, and in a browser test the list described in [Where places are on the screen](#where-places-are-on-the-screen-javascript).
 
 ## Help for your users
 
@@ -1001,6 +1165,35 @@ With Playwright, `await page.mouse.click(rack.x, rack.y)` clicks that rack.
 - **`placesOnScreen({ all = false } = {})`** — the places (elements with a type) whose center is in view. `x` and `y` are the center and `left`, `top`, `width`, `height` the box around the place, in the same viewport pixels as `getBoundingClientRect()`. `record` is the key of the linked record as a string (`null` when not linked), and `state` the state shown now. `{ all: true }` also returns places outside the view (`visible: false`) and decorations without a type (walls, furniture).
 - It reads the plan as it is drawn now and never moves it. After zooming, panning, switching plans or resizing the window, call it again. Before the plan is drawn it returns `[]`.
 - With several floors on one page, pick the one you want with `document.querySelectorAll('.fi-warp-flr')[n]`.
+- Playwright's `getByText()` cannot read the canvas; find the places by their text with the list below.
+
+### The text of the places in the page
+
+The names and states drawn on the canvas are also in the page, as text: after the plan there is a list with one button for each place (each element with a type), in reading order. It is hidden from sight but not from screen readers, so `document.body.innerText`, Playwright's `getByText()` and `getByRole()`, and the accessibility tree all find the places:
+
+```html
+<nav class="fi-warp-flr-a11y" aria-label="Bookable elements">
+  <ul>
+    <li><button type="button" data-id="12" data-type="rack" data-code="A-05-3" data-label="A-05-3" data-record="41" data-state="low">
+      <span>A-05-3</span>, Rack, Low stock
+    </button></li>
+  </ul>
+</nav>
+```
+
+```js
+// Playwright
+await expect(page.getByText('A-05-3', { exact: true })).toHaveCount(1)
+await expect(page.getByRole('button', { name: 'A-05-3, Rack, Low stock' })).toBeAttached()
+await expect(page.locator('.fi-warp-flr-a11y [data-code="A-05-3"]')).toHaveAttribute('data-state', 'low')
+```
+
+- The text is the place's name, then its type and the label of its state, as a screen reader reads it. The name alone is in the `<span>`, so `getByText(name, { exact: true })` finds it. For seats the name is the full one ("Row E, seat 7").
+- The `data-` values are the same as in `placesOnScreen()`: `id` (an element not saved yet has a temporary ID), `type`, `code`, `label`, `record` and `state` (the state's name). An empty value is left out.
+- The list has every place on the plan, also the ones outside the view. Decorations without a type (walls, furniture, text) are not in it.
+- It is hidden, so Playwright's `toBeVisible()` is false and you cannot `click()` it like a visible button. To click a place on the plan, use the point from `placesOnScreen()`. To check that it is there, use `toHaveCount()`, `toBeAttached()` or `toHaveAttribute()`.
+- It is rebuilt when the plan, the date or time, or the states change, so no old name or state is left. In the editor it follows your changes a quarter of a second after you stop (placing, renaming, deleting), and goes back to the saved plan when you leave without saving. In the editor it is hidden from screen readers (`aria-hidden`), but the text is still there.
+- It is built as one string, so even a plan with thousands of places stays fast (a warehouse with 3,000 racks takes about 30 ms in Chrome).
 
 ## Limitations
 
