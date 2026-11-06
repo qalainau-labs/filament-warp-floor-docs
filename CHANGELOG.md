@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-06
+
+### Added
+
+- `Floor::panelMode(PanelMode::Overlay)` shows the side panel only while a place is selected, as a drawer over the
+  right side of the plan, so the plan keeps its full width with a wide panel (`RepeatableEntry::table()` needs `36rem`).
+  The plan slides left when the clicked place would be under the drawer. `PanelMode::Side` stays the default.
+- `ElementType::canvasLabel(fn (FloorElement $element, ?Model $record): ?string => ...)` draws a short text on the plan
+  (`07`), while the side panel, tooltip, search and screen readers keep the full name (`F-07`).
+- `placesOnScreen({ decorations: true })` returns walls, doors, furniture and text in view without the places outside
+  the view, and `{ offScreen: true }` the places outside the view without the decorations. `{ all: true }` is both, as
+  before. Each place also has `canvasLabel`.
+- While `APP_DEBUG` is true, the browser console says when the names of a type are hidden because they do not fit, and
+  points to the new README section "Place names do not show".
+- README: what the default tooltip shows (name, then type and state, then the bookings or the `tooltipUsing()` lines),
+  and `panelWidth('clamp(20rem, 100% - 56rem, 38rem)')` to keep the plan wide.
+
+### Changed
+
+- `LabelFit::Shrink` draws all names of one element type in view at the same size, the size the widest one needs. When
+  one of them does not fit at the `labelSize()` min, the names of that type are all hidden at that zoom and come back
+  together when you zoom in. Before, each name was shrunk on its own, so narrow names such as `11` stayed while `07`
+  disappeared, which looked like a bug. To get a name per place back, lower `labelSize(min: ...)`, draw a shorter
+  `canvasLabel()`, or use `LabelFit::Truncate`.
+
 ## [1.4.4] - 2026-11-06
 
 ### Fixed

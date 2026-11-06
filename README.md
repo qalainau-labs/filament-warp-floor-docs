@@ -360,7 +360,9 @@ public function floor(Floor $floor): Floor
 - **`labelSize(?int $min = null, ?int $max = null)`** — on `Floor` (every type) and on `ElementType` (one type; what it leaves `null` comes from the floor). Both are screen pixels and at least 1, and `$min` may not be larger than `$max`.
   - **`$max`**: names grow up to this size as far as the place's height allows (about 70% of its height when it shows only its name). Without it, the default sizes are kept.
   - **`$min`**: names are never drawn smaller than this, also when you zoom out. Where the default would hide a name because the place is narrow, it is drawn as long as the place is at least `$min` pixels high. When the place gets lower than `$min` on screen, the name is hidden, and it comes back when you zoom in.
-- **`labelFit(LabelFit|string|null $fit)`** — what to do when a name is wider than its place: `LabelFit::Truncate` (`'truncate'`, the default) keeps the size and ends the name with "…"; `LabelFit::Shrink` (`'shrink'`) makes it smaller until all of it fits. A name that would have to be smaller than `$min` (6px without `$min`) is hidden rather than cut, so a code is never shown half. On its own, `labelFit()` keeps the default sizes.
+- **`labelFit(LabelFit|string|null $fit)`** — what to do when a name is wider than its place: `LabelFit::Truncate` (`'truncate'`, the default) keeps the size and ends the name with "…"; `LabelFit::Shrink` (`'shrink'`) makes it smaller until all of it fits. On its own, `labelFit()` keeps the default sizes.
+  - With `LabelFit::Shrink`, all names of one element type that are in view are drawn at **the same size**: the size the widest of them needs. So `11`, `07` and `120` on racks of the same width look the same, instead of `120` being smaller than its neighbours.
+  - If one of them would have to be smaller than `$min` (6px without `$min`), the names of that type are all hidden at this zoom, and all come back together when you zoom in. A name is never cut in half, and never shown for only some places of a type (that looked like a bug: narrow names such as `11` stayed while `07` disappeared). Each type is measured on its own, so a long dock name does not hide the rack numbers.
 
 Things to know:
 
@@ -368,6 +370,29 @@ Things to know:
 - It applies to the names inside places: rooms, areas, desks, tables, parking bays, shapes, furniture, seat numbers and places without a kind. Text elements keep their own font size, and section and row names are not affected.
 - Rooms and areas still show their capacity under the name only when they are tall enough; a larger name leaves less room for it.
 - To read codes on a large plan, `$min` is usually the setting you want, together with `LabelFit::Shrink` for long codes. Very small places on a zoomed-out plan still hide their names, because a name larger than its place would cover the neighbouring places.
+- When names are hidden, see [Place names do not show](#place-names-do-not-show). While `APP_DEBUG` is true, the browser console also says which type's names are hidden and why.
+
+#### A short name on the plan
+
+On a warehouse map, the full code of a rack (`F-07`) is what the side panel, the tooltip, search and screen readers should say, but inside a 20-pixel rack only `07` fits, and the aisle is already clear from where the rack is. `canvasLabel()` draws a shorter text on the plan only:
+
+```php
+use Qalainau\FilamentWarpFloor\Models\FloorElement;
+
+ElementType::make('rack')
+    ->kind(Kind::Room)
+    ->model(Rack::class)
+    ->titleAttribute('code')                                   // "F-07": panel, tooltip, search, screen readers
+    ->canvasLabel(fn (FloorElement $element, ?Rack $record): ?string => $record?->number) // "07": inside the rack on the plan
+    ->labelSize(min: 9, max: 14)
+    ->labelFit(LabelFit::Shrink);
+```
+
+- **`canvasLabel(?Closure $callback)`** — the text drawn inside the place on the plan. The closure receives the place as `$element` (a `FloorElement`, with its `code` and `label`) and the linked record as `$record` (or by its model class). Return `null` or `''` to draw the usual name for that place.
+- Everything else keeps the full name: the side panel's heading, the tooltip, the search, the list for screen readers (`.fi-warp-flr-a11y`) and `label` in `placesOnScreen()` (which also returns the short text as `canvasLabel`).
+- A closure that type-hints the record without `?` (`fn (Rack $record) => ...`) is not called for places without a linked record; they show their usual name.
+- The editor draws the full name, so a name you change there shows at once.
+- It runs once per place when the plan is loaded, so keep it to attributes of the element and the record (no queries per place).
 
 ### Bookings and states
 
@@ -849,6 +874,21 @@ public function floor(Floor $floor): Floor
 - **`Floor::panelWidth(int|string|Closure|null $width)`** — the width of the side panel (an integer is pixels, a string any CSS length; the default is `20rem`). Filament shows `RepeatableEntry::table()` as a table only when it has at least `36rem`; in a narrower panel each row is stacked as label and value, which is fine for a few fields.
   - Without `panelWidth()`, the panel never takes more than half of the floor's width.
   - With `panelWidth()`, the panel gets the width you asked for and the plan becomes narrower. When the plan would be narrower than `20rem` next to it (or the width is wider than the whole floor), the panel moves below the plan and takes the full width. On screens narrower than `48rem` it is always below the plan at full width.
+  - A wide panel beside the plan costs the plan its width: at 1440px with the Filament sidebar, a `38rem` panel leaves the plan about 440px, and small places such as racks get too small for their names. To keep the plan wide, put the panel over the plan instead (below), or let the panel shrink first with a CSS `clamp()`: `->panelWidth('clamp(20rem, 100% - 56rem, 38rem)')` gives the plan at least `56rem` and the panel between `20rem` and `38rem` (the `RepeatableEntry::table()` is stacked when the panel is narrower than `36rem`).
+- **`Floor::panelMode(PanelMode|string|Closure|null $mode)`** — where the panel goes. `PanelMode::Side` (`'side'`, the default) puts it beside the plan, always visible. `PanelMode::Overlay` (`'overlay'`) shows it only while a place is selected, as a drawer over the right side of the plan, so the plan keeps its full width and a wide panel (for a table) costs nothing:
+
+```php
+use Qalainau\FilamentWarpFloor\Enums\PanelMode;
+
+return $floor
+    ->panelMode(PanelMode::Overlay)   // the plan keeps its full width
+    ->panelWidth('38rem')             // room for RepeatableEntry::table()
+    ->elementTypes([/* ... */]);
+```
+
+  - The drawer covers the plan from the top to the bottom of the plan area, below the zoom buttons. When the place you clicked would be under it, the plan slides left so the place stays in view. The × button (or clicking another place) closes or replaces it.
+  - With nothing selected the drawer is hidden. Plans that show lists in the empty panel (the waitlist of a restaurant, "Who's in") should keep `PanelMode::Side`, or those lists are not shown.
+  - On plans with [price categories](#price-categories) (the basket) and on screens narrower than `48rem`, the panel is shown as with `PanelMode::Side`.
 
 Where it appears: under the place's name, state, features and the person who booked it, and above the day's schedule and the "Book" button. The [record actions](#menus-and-tooltips) of the type are listed as buttons at the bottom of the panel.
 
@@ -874,7 +914,13 @@ ElementType::make('desk')
     ->tooltipUsing(fn (Desk $record, Collection $bookings): array => ["Monitor: {$record->monitor}"]);
 ```
 
-By default the tooltip lists the bookings in the time range with their times and titles. Seats with a price category show their section, row, number, category and price without asking the server.
+What the tooltip shows by default, from top to bottom:
+
+1. **The name** of the place: its own label, the record's `titleAttribute()`, or its code (the type's label when it has none). It is the full name also when the plan shows a shorter [`canvasLabel()`](#a-short-name-on-the-plan).
+2. **The type and the state**, as "Rack · Low stock": the element type's `label()` and the label of the place's [state](#bookings-and-states) now (`stateUsing()`, the booking states). You do not need to repeat the state in `tooltipUsing()`.
+3. **The lines**: the bookings in the time range with their times and titles, or, with `tooltipUsing()`, the lines your closure returns instead (the name, type and state above stay).
+
+Seats with a price category show their section, row, number, category and price without asking the server.
 
 ## Editor
 
@@ -1274,7 +1320,15 @@ const rack = floor.placesOnScreen().find((place) => place.code === 'A-05-3')
 
 With Playwright, `await page.mouse.click(rack.x, rack.y)` clicks that rack.
 
-- **`placesOnScreen({ all = false } = {})`** — the places (elements with a type) whose center is in view. `x` and `y` are the center and `left`, `top`, `width`, `height` the box around the place, in the same viewport pixels as `getBoundingClientRect()`. `record` is the key of the linked record as a string (`null` when not linked), and `state` the state shown now. `{ all: true }` also returns places outside the view (`visible: false`) and decorations without a type (walls, furniture).
+- **`placesOnScreen({ decorations = false, offScreen = false, all = false } = {})`** — the places (elements with a type) whose center is in view. `x` and `y` are the center and `left`, `top`, `width`, `height` the box around the place, in the same viewport pixels as `getBoundingClientRect()`. `record` is the key of the linked record as a string (`null` when not linked), `state` the state shown now, and `canvasLabel` the short text drawn on the plan by [`canvasLabel()`](#a-short-name-on-the-plan) (`null` without it).
+  - `{ decorations: true }` also returns the elements without a type that are in view: walls, doors, furniture, shapes and text such as "Loading dock". Use it to point at a label on the plan.
+  - `{ offScreen: true }` also returns places whose center is outside the view, with `visible: false`.
+  - `{ all: true }` is both. Each option can be combined with the others (`{ all: true, decorations: false }` is the same as `{ offScreen: true }`).
+
+```js
+const dock = floor.placesOnScreen({ decorations: true }).find((place) => place.label === 'Loading dock')
+await page.mouse.move(dock.x, dock.y)
+```
 - It reads the plan as it is drawn now and never moves it. After zooming, panning, switching plans or resizing the window, call it again. Before the plan is drawn it returns `[]`.
 - With several floors on one page, pick the one you want with `document.querySelectorAll('.fi-warp-flr')[n]`.
 - Playwright's `getByText()` cannot read the canvas; find the places by their text with the list below.
@@ -1323,6 +1377,14 @@ await expect(page.locator('.fi-warp-flr-a11y [data-code="A-05-3"]')).toHaveAttri
 **Seats placed from a template cannot be booked.** The template gives elements the element type of the same kind. Pass the floor's types to `apply()`, or give your seat type `->kind(Kind::Seat)`.
 
 **Two people booked the same place at the same moment and one got "database is locked".** On SQLite, give the connection a `busy_timeout` (for example `5000`) in `config/database.php`, so the second booking waits for the first one and is then refused cleanly. MySQL and PostgreSQL need nothing.
+
+<a id="place-names-do-not-show"></a>**Place names do not show (or only some of them).** A name is hidden when its place is too small on the screen for it. In order:
+
+- Zoom in: names come back when the places are large enough.
+- Give the plan more room: a taller plan with `->height()` (for example `->height('max(32rem, 100dvh - 16rem)')`), and a narrower side panel, or `->panelMode(PanelMode::Overlay)` so the panel no longer takes width from the plan (see [Your own content in the side panel](#your-own-content-in-the-side-panel)).
+- Set `labelSize(min: ...)` lower, or use `LabelFit::Shrink` so long names get smaller instead of "…" ([The size of place names](#the-size-of-place-names)). With `LabelFit::Shrink`, when one name of a type does not fit at `$min`, the whole type is hidden at that zoom.
+- Draw a shorter text on the plan with [`canvasLabel()`](#a-short-name-on-the-plan) (`07` instead of `F-07`).
+- While `APP_DEBUG` is true, the browser console says which type's names are hidden and why.
 
 **The background does not appear.** Make sure the disk serves files (for the `public` disk, run `php artisan storage:link`), or use a disk that can create temporary URLs.
 
