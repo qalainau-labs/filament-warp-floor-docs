@@ -320,6 +320,12 @@ $floor
 
 `stateUsing()` also works without bookings, for example to color warehouse shelves by stock level.
 
+The callbacks of an element type (`unavailableWhen()`, `stateUsing()`, `statesUsing()`, `tooltipUsing()` and
+`modifyRecordsQueryUsing()`) receive their arguments by name: `$record`, `$records`, `$bookings`, `$window` and `$query`.
+The record, the range and the query are also passed by their type, so `fn (Desk $desk)` and `fn (Window $range)` work
+too. Other classes are made by Laravel's container. An argument that can be given neither way (an untyped `$desk`, a
+model of another class, or a collection with another name) throws an exception that lists the names it can pass.
+
 #### Working out the states of all places at once
 
 `stateUsing()` is called once per place. When a state comes from a total — stock on hand against a reorder point, open orders per rack — that means one query per place, or a cache of your own. `statesUsing()` is called **once per type** with all the records on the plan, and returns their states keyed by the record's key:

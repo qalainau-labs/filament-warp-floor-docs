@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-06
+
+### Fixed
+
+- The callbacks of an element type (`unavailableWhen()`, `stateUsing()`, `statesUsing()`, `tooltipUsing()`,
+  `modifyRecordsQueryUsing()`) got an empty new model when the record's parameter had another name than `$record`
+  (`fn (Desk $desk)`), so a broken desk could be booked. The record, the range (`Window`) and the query are now passed by
+  their type as well, and an argument that cannot be given throws an exception naming the arguments instead.
+
 ## [1.4.0] - 2026-11-06
 
 ### Added
