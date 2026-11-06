@@ -43,10 +43,10 @@ class Theater extends FloorPage
 ## Contents
 
 - [Why](#why) · [Features](#features) · [Requirements](#requirements) · [Installation](#installation) ([AI coding assistants](#ai-coding-assistants-laravel-boost))
-- Usage: [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
+- [Usage](#usage): [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) ([Places in code](#places-in-code-seeders-and-tests)) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
 - Venues: [Seat maps](#seat-maps) · [Shows](#shows) · [Price categories](#price-categories) · [The basket](#the-basket) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
-- [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage](#usage)
+- [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage report](#usage-report)
 - [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) ([Testing with tenancy](#testing-with-tenancy)) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
@@ -210,6 +210,96 @@ Good to know:
 - A plan added on the floor page with "New floor" gets the owner of the plan that was open, and a floor added on the [venues page](#venues-and-floors) as a copy of another floor gets that floor's owner. So a page narrowed with `whereMorphedTo('owner', …)` still shows the new plan. A blank floor added on the venues page, a new venue, and a plan created while no plan was open have no owner; set it in your own code if you need one.
 - Ownership is separate from [tenancy](#tenancy). The floor still shows only the current tenant's plans, so `whereMorphedTo('owner', $location)` never shows a plan of another team, even if it points at the same record.
 - Deleting the owner record does not delete its plans. Delete them yourself (for example in a model event), or they stay with an `owner` that returns `null`.
+
+#### Places in code (seeders and tests)
+
+Every thing on a plan is a `FloorElement` row in `warp_floor_elements`. The editor writes these rows, but you can create them yourself, for example in a seeder or in a test. Create them through the plan's `elements()` relation:
+
+```php
+use App\Models\Desk;
+use App\Models\Room;
+use Qalainau\FilamentWarpFloor\Enums\Kind;
+use Qalainau\FilamentWarpFloor\Enums\Shape;
+use Qalainau\FilamentWarpFloor\Models\FloorPlan;
+
+$plan = FloorPlan::create(['name' => '3F', 'group' => 'Head office', 'width' => 1600, 'height' => 1000]);
+
+// desks linked to your Desk records, 6 in a row
+foreach (Desk::orderBy('name')->get() as $i => $desk) {
+    $element = $plan->elements()->make([
+        'type' => 'desk',                     // the name in ElementType::make('desk')
+        'kind' => Kind::Desk,
+        'shape' => Shape::Rect,
+        'geometry' => ['x' => 100 + ($i % 6) * 90, 'y' => 100 + intdiv($i, 6) * 80, 'w' => 70, 'h' => 44],
+        'props' => ['features' => ['monitor']],
+    ]);
+    $element->bookable()->associate($desk);   // fills bookable_type and bookable_id
+    $element->save();
+}
+
+// a meeting room for 8, linked to a Room record
+$plan->elements()->make([
+    'type' => 'room',
+    'kind' => Kind::Room,
+    'shape' => Shape::Rect,
+    'geometry' => ['x' => 900, 'y' => 100, 'w' => 300, 'h' => 200],
+    'props' => ['capacity' => 8],
+])->bookable()->associate(Room::where('name', 'Ocean')->first())->save();
+
+// a theater seat without a model (booked with BookingSource::element())
+$plan->elements()->create([
+    'type' => 'seat',
+    'kind' => Kind::Seat,
+    'shape' => Shape::Point,
+    'geometry' => ['x' => 400, 'y' => 700],
+    'code' => 'A-1',
+    'category' => 'S',                        // a key of the plan's price categories
+    'props' => ['row' => 'A', 'number' => 1],
+]);
+
+// decoration: no type, no record
+$plan->elements()->create([
+    'kind' => Kind::Wall,
+    'shape' => Shape::Line,
+    'geometry' => ['points' => [[20, 20], [1580, 20], [1580, 980], [20, 980], [20, 20]]],
+    'props' => ['thickness' => 10],
+]);
+```
+
+The columns:
+
+- **`type`**: the name of an `ElementType` of the page (`ElementType::make('desk')` → `'desk'`). A place whose `type` matches no element type of the page is drawn gray and cannot be booked. Leave it `null` for decoration (walls, doors, furniture, text).
+- **`kind`**: a `Kind` (or its value, `'desk'`). It decides how the element is drawn and which `props` it uses (see [Element types and kinds](#element-types-and-kinds)).
+- **`shape`** and **`geometry`**: a `Shape` (or its value) and its coordinates in plan units, from the top left of the plan:
+  - `Shape::Point`: `['x' => …, 'y' => …]`, the middle (seats, and desks or bays drawn as a dot);
+  - `Shape::Rect`: `['x' => …, 'y' => …, 'w' => …, 'h' => …]`, the top left corner and the size;
+  - `Shape::Circle`: `['x' => …, 'y' => …, 'r' => …]`, the middle and the radius (round tables);
+  - `Shape::Polygon` and `Shape::Line`: `['points' => [[x, y], …]]` (areas; walls, doors, windows);
+  - `Shape::Text`: `['x' => …, 'y' => …]`, the middle of the text.
+- **The record**: `$element->bookable()->associate($record)` links the place to a record of the element type's `model()`. It stores `$record->getMorphClass()` in `bookable_type`, which is what Warp Floor looks for, so it also works with `Relation::enforceMorphMap()`. A place of a type with a model but no record is drawn gray until it is linked (in code, or in the editor).
+- **`code`**: the name of a place inside the plan, such as a seat number (`'A-1'`) or a desk number. Bookings made with `element()` point at the element's `id`, not at its code.
+- **`label`**: the name drawn on the place. Leave it `null` to show the record's title (`titleAttribute()`).
+- **`props`**: the settings of the kind: `capacity` for rooms and areas, `chairs` for tables, `features` (a list of [feature](#favorites-features-and-search) keys) for desks, rooms and bays, `row` and `number` for seats, `thickness` for walls, `icon` for furniture (`'plant'`, `'sofa'`, `'printer'`…).
+- **`category`**: the key of one of the plan's [price categories](#price-categories), for seats, tables and areas.
+- **`rotation`** (degrees, around the middle) and **`z`** (higher is drawn on top) are optional.
+
+Good to know:
+
+- A section created this way has no seats: the seats of a section are elements of their own (with `parent_id` set to the section), made by the editor or a template. In code, create the seats one by one, as above, or fill the plan from a [template](#templates) that has sections.
+- To start from a ready-made layout and link its places to your records, apply a template and then link the places by their code. The templates name desks, tables and bays (`A-01`, `T1`…) in `code`:
+
+```php
+use Qalainau\FilamentWarpFloor\ElementType;
+use Qalainau\FilamentWarpFloor\Templates\OfficeTemplate;
+
+OfficeTemplate::make()->apply($plan, [ElementType::make('desk')->kind(Kind::Desk)]);
+
+foreach (Desk::all() as $desk) {
+    $plan->elements()->where('code', $desk->name)->first()?->bookable()->associate($desk)->save();
+}
+```
+
+- Creating elements in code does not change the plan's `version`. A plan open in the editor at the same time is not warned, so seed plans before people edit them.
 
 ### Element types and kinds
 
@@ -650,6 +740,22 @@ $floor->manageBookings(fn (Reservation $booking): bool => $booking->user_id === 
 
 A move keeps the booking's time and checks the new place like a new booking: free, not unavailable, with room. The booking model's policy (`update`, `delete`) decides too, when there is one.
 
+A booking can only be moved to a place of the same element type. To refuse some of those places, give the booking source `canMoveTo()`. It receives the booking and the element it would move to, and returns `false` to refuse. For example, a party may move only to a table with enough chairs:
+
+```php
+use Qalainau\FilamentWarpFloor\Models\FloorElement;
+
+BookingSource::make(TableBooking::class)
+    ->resource('table_id')
+    ->people('party_size')
+    ->canMoveTo(fn (TableBooking $booking, FloorElement $to): bool => ($to->props['chairs'] ?? 0) >= $booking->party_size);
+```
+
+- **`canMoveTo(?Closure $callback)`**: `fn (Model $booking, FloorElement $to): bool`. The arguments are passed in this order (not by name), so name them as you like. `$to` is the element on the plan; its record is `$to->bookable` (`null` for places without a model, such as seats). `null` removes the check.
+- When it returns `false`, nothing is saved and the side panel says "That one is too small for this booking." It is checked before the new place is checked for overlaps.
+- It is only used for moves. New bookings, walk-ins and the waitlist do not call it.
+- `people()` is not checked when a booking is moved: without `canMoveTo()`, a party of 6 can be moved to a table with 4 chairs if it is free.
+
 ### Confirmations, calendars and events
 
 `confirmations()` emails the person who booked (the signed-in user, when the model uses `Notifiable`) a confirmation with a calendar file (`.ics`) attached. A booking with its repeats, or several seats from the basket, go in one email.
@@ -903,7 +1009,7 @@ protected function editPageFor(FloorPlan $plan): ?string
 }
 ```
 
-## Usage
+## Usage report
 
 ![Usage: a heat map of the floor, busy days and hours, and the rooms](https://raw.githubusercontent.com/qalainau-labs/filament-warp-floor-docs/main/art/usage.png)
 

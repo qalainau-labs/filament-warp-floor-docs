@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-06
+
+### Changed
+
+- README: a new section "Places in code (seeders and tests)" shows how to create `FloorElement`s with a full example:
+  the `type`, `kind`, `shape` and `geometry` of each shape, linking records with `bookable()->associate()`, `code`,
+  `label`, `props` and `category`, sections without seats, and linking the places of a template by their code.
+- README: `BookingSource::canMoveTo()` is documented under "Moving and cancelling bookings", with an example that keeps
+  a party at tables with enough chairs. Moves do not check `people()`; the README now says so.
+- README: the usage statistics section is now "Usage report", so it no longer has the same heading (and link) as "Usage".
+
 ## [1.4.1] - 2026-11-06
 
 ### Fixed
