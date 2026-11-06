@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-06
+
+### Fixed
+
+- Moving a booking checks `people()` against the new place's chairs or capacity, as a new booking does. A party of 6
+  could be moved to a free table with 4 chairs; the move is now refused with "That one is too small for this booking."
+
 ## [1.4.2] - 2026-11-06
 
 ### Changed

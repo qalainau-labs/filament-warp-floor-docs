@@ -738,9 +738,9 @@ BookingSource::make(Reservation::class)->morph('bookable')->repeatable()->schema
 $floor->manageBookings(fn (Reservation $booking): bool => $booking->user_id === auth()->id());
 ```
 
-A move keeps the booking's time and checks the new place like a new booking: free, not unavailable, with room. The booking model's policy (`update`, `delete`) decides too, when there is one.
+A move keeps the booking's time and checks the new place like a new booking: free, not unavailable, with room. With `people()`, a party does not fit a place with fewer chairs or a lower capacity (a party of 6 cannot move to a table with 4 chairs). The booking model's policy (`update`, `delete`) decides too, when there is one.
 
-A booking can only be moved to a place of the same element type. To refuse some of those places, give the booking source `canMoveTo()`. It receives the booking and the element it would move to, and returns `false` to refuse. For example, a party may move only to a table with enough chairs:
+A booking can only be moved to a place of the same element type. To refuse more of those places, give the booking source `canMoveTo()`. It receives the booking and the element it would move to, and returns `false` to refuse. For example, a party that needs step-free access may move only to a table that has it:
 
 ```php
 use Qalainau\FilamentWarpFloor\Models\FloorElement;
@@ -748,13 +748,13 @@ use Qalainau\FilamentWarpFloor\Models\FloorElement;
 BookingSource::make(TableBooking::class)
     ->resource('table_id')
     ->people('party_size')
-    ->canMoveTo(fn (TableBooking $booking, FloorElement $to): bool => ($to->props['chairs'] ?? 0) >= $booking->party_size);
+    ->canMoveTo(fn (TableBooking $booking, FloorElement $to): bool => ! $booking->needs_step_free || $to->bookable?->is_step_free);
 ```
 
 - **`canMoveTo(?Closure $callback)`**: `fn (Model $booking, FloorElement $to): bool`. The arguments are passed in this order (not by name), so name them as you like. `$to` is the element on the plan; its record is `$to->bookable` (`null` for places without a model, such as seats). `null` removes the check.
-- When it returns `false`, nothing is saved and the side panel says "That one is too small for this booking." It is checked before the new place is checked for overlaps.
+- When it returns `false`, nothing is saved and the side panel says "That one is too small for this booking." (the same words as for too few chairs). It is checked before the new place is checked for overlaps.
 - It is only used for moves. New bookings, walk-ins and the waitlist do not call it.
-- `people()` is not checked when a booking is moved: without `canMoveTo()`, a party of 6 can be moved to a table with 4 chairs if it is free.
+- The chairs and capacity are checked before `canMoveTo()`, so you do not need to compare them yourself. A place without `chairs` or `capacity` takes any number of people.
 
 ### Confirmations, calendars and events
 
