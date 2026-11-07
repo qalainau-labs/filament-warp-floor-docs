@@ -712,6 +712,10 @@ BookingSource::make(Reservation::class)
     ->releaseAfter(30);
 ```
 
+- `releaseAfter()` needs `checkIn()`: without the column there is nothing to tell who came, so Warp Floor throws an exception that says so instead of never freeing a desk.
+- No scheduled job is needed to free the desk: a booking nobody checked in to stops counting the moment the time has passed, for the states, the overlap check and new bookings. The `warp-floor:release-notices` command below only sends the emails and events.
+- A booking made for a time that has already started (booking a desk at 10:30 for the whole day) is checked in at once (`checked_in_at` is set to now), because the person is there. Otherwise it would be released the moment it is saved. In a test, the `checked_in_at` of such a booking is not `null`.
+
 The usage page counts bookings that were never checked in to as no-shows.
 
 **QR codes on the desks.** `checkInCodes()` adds "Print check-in QR codes" to the "Print or save" menu: a sheet with one code per place that has check-in, named like the plan ("A-03"), to cut out and stick on the desks. Scanning a code opens the page on that place and checks the signed-in user in to their booking there, or says that they have none right now (they can book it from the panel if it is free). Without arguments it is offered to people who can edit the plan; pass a closure to decide.

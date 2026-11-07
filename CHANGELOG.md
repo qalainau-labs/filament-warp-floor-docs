@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-07
+
+### Fixed
+
+- `releaseAfter()` without `checkIn()` did nothing, so desks were never freed and nothing said why. It now throws an
+  exception that names the booking source and says to add `->checkIn('checked_in_at')`.
+
+### Documentation
+
+- README "Check-in": `releaseAfter()` needs `checkIn()`, no scheduled job is needed to free a desk, and a booking made
+  for a time that has already started is checked in when it is saved (its `checked_in_at` is not `null` in tests).
+- Laravel Boost guidelines and skill: check-in and `releaseAfter()`.
+
 ## [1.5.0] - 2026-11-06
 
 ### Added
