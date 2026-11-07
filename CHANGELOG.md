@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-07
+
+### Documentation
+
+- README: `panelWidth('clamp(20rem, 100% - 56rem, 38rem)')` keeps the panel at `20rem` until the plan has about `56rem`,
+  then lets it grow up to `38rem`; it does not give the plan `56rem` on every screen (measured at 1100, 1440 and
+  1920px: at 1440px with the sidebar, a `20rem` panel and a plan of about 720px).
+
 ## [1.5.1] - 2026-11-07
 
 ### Fixed
