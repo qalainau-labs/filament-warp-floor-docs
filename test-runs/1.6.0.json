@@ -1,0 +1,25 @@
+{
+    "version": "1.6.0",
+    "tested_on": "2026-11-10",
+    "combinations": 42,
+    "passed": 42,
+    "tests": 349,
+    "php": [
+        "8.3",
+        "8.4",
+        "8.5"
+    ],
+    "laravel": [
+        "12",
+        "13"
+    ],
+    "databases": [
+        "SQLite 3.45.2",
+        "MySQL 8.4.2",
+        "MySQL 8.0.46",
+        "MariaDB 13.0.2",
+        "MariaDB 10.11.6",
+        "PostgreSQL 18.0",
+        "PostgreSQL 14.11"
+    ]
+}

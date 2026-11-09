@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-10
+
+### Fixed
+
+- Editor: "Unplaced" now starts with the linked type the open floor uses most, and follows the floor you switch to.
+  A floor with places but none of a linked type (an arena of seats) picks no type, so it no longer says
+  "24 × Desk not on any plan yet"; the menu asks you to choose one. A type you choose yourself stays.
+- Editor toolbar: every icon shows its name in a tooltip, also while it cannot be pressed (Undo, Redo, Duplicate,
+  Delete, Align). The drawing tools use the same tooltip instead of the browser's delayed `title`.
+- Editor: the button that leaves the editor is called "Close editor" instead of "Done", and both it and Save explain
+  themselves in a tooltip (Close editor shows the plan as people see it and asks first about unsaved changes; Save
+  keeps the editor open).
+- Plan: a room, table or shape name that does not fit on one line ("Meeting…", "Ta…") is wrapped by words (by
+  characters in Japanese, Chinese and Korean), and made up to 9px smaller if needed, before it is cut with "…". This is
+  for types without `labelSize()` / `labelFit()`; those keep their own rules. A name cut down to 3 letters or fewer
+  ("T…", "…") is not drawn at all; zoom in to read it.
+- Plan: the capacity line of a wide area whose name is at its top ("Terrace · 24 people") is left out while the area is
+  narrower than 100px on screen, so it no longer overlaps the chairs inside.
+- "Your upcoming bookings" wraps between the day, the time, the place and "Check in from 13:45" on a phone, instead of
+  inside them ("To/day", "14:00–/15:00").
+- On a phone, the print/save button above the plan shows its name ("Print or save") next to the icon, as there is no
+  tooltip on touch screens.
+- Plan: the name of a tall, narrow desk (W-01 by a window) is written upright when it does not fit across the desk,
+  instead of across it and over its chairs. A capacity line that does not fit a small room ("1 pers…") is left out.
+- "Who's in" puts each place of a person on its own line, with a dot between the place and the time
+  ("4F Focus 1 · 16:00–17:00"); "4F Focus 1 16:00" read like "Focus 116:00". The list shows a shadow at the end where
+  more people are hidden, so the first eight no longer look like all of them.
+- On a phone, "next week" and the calendar stay at the right end of the day strip while it scrolls, instead of being
+  hidden after the last day.
+- Waitlist: the Seat and Remove buttons are always on the line under the name, instead of on the same line for short
+  names only. Japanese: "名簿から外す" instead of "外す". The hint of the empty panel breaks Japanese, Chinese and Korean
+  text between phrases where the browser can.
+- The hint of the empty side panel no longer lists "a desk, a room, a table or a bay", which named desks on a restaurant
+  floor: "Click a place on the plan to see its day and book it."
+
+### Added
+
+- The legend above the plan explains the marks drawn on it, only when the floor has them: the circle with initials of
+  who booked a place ("Booked by (initials)"), windows, plants, and filled shapes nobody books ("Drawn area (not
+  bookable)", with the color of the first one). The "Available" sample is a light fill with an outline, so it looks like
+  both a free desk and a free room.
+- A floor without the date bar (a dashboard widget) says which moment it shows, with the floor's time zone:
+  "Right now (Mon, Nov 9, 15:05 UTC)". The time is in 24 hours like the booking times (09:00–13:00); the printed
+  heading of "Right now" uses the same clock instead of the browser's.
+- A bookable room that is free or partly booked has a thin inner outline in the color of its state, like a desk and
+  the legend sample, inside its gray wall. The marks of the legend are a row of their own, so they wrap together.
+- New translation keys `filters.booked_by`, `filters.drawn`, `editor.unplaced.choose`, `editor.done_help`,
+  `editor.save_help` and `time.now_at` (10 languages); `editor.done` now reads "Close editor".
+
 ## [1.5.2] - 2026-11-07
 
 ### Documentation
