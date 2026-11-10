@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-10
+
+### Security
+
+- Usage report: place names that start with `=`, `+`, `-`, `@`, a tab or a line break are written to the CSV export as plain text, so they no longer run as formulas when the file is opened in Excel or another spreadsheet app.
+- Floor plan backgrounds: SVG files with scripts, embedded HTML or links written with an XML namespace prefix are now rejected like other SVGs with active content.
+
 ## [1.6.0] - 2026-11-10
 
 ### Fixed
