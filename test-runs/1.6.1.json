@@ -21,5 +21,6 @@
         "MariaDB 10.11.6",
         "PostgreSQL 18.0",
         "PostgreSQL 14.11"
-    ]
+    ],
+    "lowest": null
 }
