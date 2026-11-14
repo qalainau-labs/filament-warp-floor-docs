@@ -1,7 +1,7 @@
 # Commercial License Agreement
 
 The Warp plugins for Filament published by qalainau (Warp Table, Warp Repeater, Warp Scheduler,
-Warp Sheet, Warp Pivot and any later Warp plugin, each a `qalainau/filament-warp-*` package).
+Warp Sheet, Warp Pivot, Warp Quick Look and any later Warp plugin, each a `qalainau/filament-warp-*` package).
 This Agreement applies separately to each Warp plugin you purchase; that plugin is the "Software".
 A license for one Warp plugin does not grant any right to another.
 

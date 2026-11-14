@@ -5,6 +5,12 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-11-14
+
+### Fixed
+
+- Searching for records to place on a plan no longer fails on PostgreSQL when a type's search columns include a number or date column (`operator does not exist: integer ~~* text`).
+
 ## [1.6.2] - 2026-11-12
 
 ### Changed
