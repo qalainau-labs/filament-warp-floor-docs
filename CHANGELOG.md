@@ -5,6 +5,14 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.4] - 2026-11-14
+
+### Fixed
+
+- The list of your bookings and the names of places linked to a record no longer fail in apps that use `Model::shouldBeStrict()` or `Model::preventLazyLoading()`. The linked records of the listed places are loaded together, instead of one query per place.
+- Accessibility: grey text in dark mode (muted notes, menu titles, opening hours, the usage page and its tables) is light enough to read (4.5:1), and white text sits on a darker color (the selected day, your own avatar, the person mark in the legend).
+- Accessibility: the plan tabs use `aria-selected` only (not `aria-pressed`), the day buttons include their visible text in their name, the venue pictures have the venue name, the list of places is also `inert` while editing, and the scrolling tables of the usage page can be reached with the keyboard.
+
 ## [1.6.3] - 2026-11-14
 
 ### Fixed
