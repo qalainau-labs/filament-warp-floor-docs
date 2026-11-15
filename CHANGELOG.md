@@ -5,6 +5,17 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-15
+
+### Added
+
+- Restricting pages per role: override `canAccess()` and `canWrite()` on your `FloorPage`, `VenuesPage` and `UsagePage`. A page whose `canWrite()` returns `false` stays open but read-only: editing, booking, checking in, moving and cancelling bookings, the waitlist and the venue actions are hidden, and the same calls from the browser are refused. It comes on top of `editable()`, `manageBookings()` and your policies.
+
+### Fixed
+
+- No more `Cannot read properties of undefined (reading 'focus')` in the browser console when you leave the page right after buying or booking (the plan tried to take the focus back after the page was gone).
+- Accessibility: in light mode, "Check in from …" and "Checked in" in the list of your bookings above the plan are dark enough to read on its tinted background (4.5:1).
+
 ## [1.6.4] - 2026-11-14
 
 ### Fixed

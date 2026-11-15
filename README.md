@@ -981,6 +981,45 @@ In the editor:
 - **Bookings ahead**: deleting places that still have bookings ahead, or changing their type, asks first and says how many bookings it affects.
 - **Saving**: only the changes are sent. If someone else saved the plan in the meantime, nothing is overwritten and the editor offers to reload it. While a save or a background upload is on its way, the plan can be panned but not changed, so no change made in that moment is lost. A background goes to the plan it was chosen for, even if you switch to another plan while it uploads.
 
+### Restricting pages per role
+
+When your app has roles that decide, page by page, who may open a screen and who may only look at it (a receptionist who books, a visitor who only looks at the plan), override `canAccess()` and `canWrite()` on the pages you extend: `FloorPage`, `VenuesPage` and `UsagePage`. Floor has no plugin class, so the pages themselves are where your rules go.
+
+```php
+use Qalainau\FilamentWarpFloor\Pages\FloorPage;
+
+class Office extends FloorPage
+{
+    // Who may open the page at all: the menu item, the URL and every call from the browser
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && (auth()->user()?->canOpen(static::class) ?? false);
+    }
+
+    // Who may change anything on it. Everyone else can still look
+    public static function canWrite(): bool
+    {
+        return parent::canWrite() && ! (auth()->user()?->isReadOnlyOn(static::class) ?? true);
+    }
+}
+```
+
+Return `false` for people who are not signed in (`auth()->user()` is `null`), as in the example.
+
+`canAccess()` is checked when the page opens and on every Livewire request, so a page that is closed after it was opened stops answering too. The menu item goes away, and the venues page no longer links to a floor page the person cannot open.
+
+When `canWrite()` returns `false`, the page stays open but becomes read-only:
+
+| Page | Hidden | Refused with 403 when called directly |
+| --- | --- | --- |
+| `FloorPage` | Edit, New plan, Rename / Delete plan, Save as template; Book, the basket, Seat now, booking from the day timeline; Check in; Move / Cancel on bookings; adding to, seating from and removing from the waitlist | saving the plan, setting or removing the background, unplaced records, deleting a saved template, checking in, cancelling and moving bookings, removing from the waitlist; the booking and waitlist actions are refused too |
+| `VenuesPage` | New venue, Add floor, Rename, Delete, Edit layout | the same actions |
+| `UsagePage` | nothing (the page only reads) | — |
+
+What still works on a read-only page, because it only reads: opening plans, the side panel and tooltips, choosing a time, search, who is in, your own bookings, adding a booking to your calendar, printing the check-in QR codes (for people who may edit plans), favorites (a personal setting of each person), and the CSV download of the usage report. The "Edit layout" link on a venue card also goes away when the edit page itself is read-only.
+
+These rules come on top of the ones you already have — `editable()`, `manageBookings()`, `checkInCodes()` and the policies of `FloorPlan` and of your booking model — and can never widen them: `canWrite()` returning `true` does not let anyone edit a plan that `editable()` keeps closed. Record actions you add to element types (`recordActions()`) are yours; hide the ones that write with `->visible(fn (): bool => Office::canWrite())`.
+
 ## Templates
 
 ![New venue: pick a name, a template and the floors](https://raw.githubusercontent.com/qalainau-labs/filament-warp-floor-docs/main/art/venues.png)
