@@ -28,7 +28,12 @@ sublicense, or deploy for a distinct client counts as a separate project.
 
 A "SaaS application" means an application that serves multiple customers or
 organizations under a subscription or similar arrangement. Using the Software in a
-SaaS application requires an Unlimited Projects license.
+SaaS application requires an Unlimited Projects license, except for Warp SaaS below.
+
+Warp SaaS (`qalainau/filament-warp-saas`) is made for building SaaS applications. For
+Warp SaaS only, a Single Project license covers **one (1)** SaaS application, in all
+of that application's environments. Using Warp SaaS in more than one SaaS
+application requires an Unlimited Projects license.
 
 ## 2. Permitted Use
 

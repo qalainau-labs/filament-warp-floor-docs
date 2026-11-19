@@ -5,6 +5,14 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.7.1] - 2026-11-20
+
+### Fixed
+
+- **Console error `warpFloor is not defined`**: on pages where Livewire re-renders a floor plan inside another Alpine component, the browser console could show `warpFloor is not defined` before the component's script had arrived. Empty components are now registered up front, and the real ones replace them as soon as they load. No visible change.
+
 ## [1.7.0] - 2026-11-15
 
 ### Added
