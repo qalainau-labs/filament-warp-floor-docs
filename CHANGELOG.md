@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-11-21
+
+### Fixed
+
+- **`TypeError` when opening a place whose record is gone**: if a place on the plan points to a record that no longer exists (deleted, or not there yet while your data is being rebuilt), clicking it rendered the `panelSchema()` array without a record, so a closure typed with the model (`fn (Rack $record) => ...`) failed with `must be of type Rack, null given`. The side panel now leaves the schema out for such a place. A `panelSchema()` closure is still called, with `$record` set to `null`.
+
 ## [1.7.1] - 2026-11-20
 
 ### Fixed
