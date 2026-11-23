@@ -5,7 +5,28 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-11-23
+
+### Added
+
+- `FloorPicker`, a plan selection field for Filament forms with single/multiple values, type filters and server-side availability validation.
+- `BookingSource::places()` for one reservation across several places, atomic booking, per-place states and cancellation.
+
+- Per-show category prices through `Session::prices()` and `Floor::priceUsing()`, shared by category chips, basket totals and tooltips.
+- Opt-in `Floor::noSingleSeatGaps()` with matching browser/server checks and Best seats filtering.
+- Section and seat view images, `ElementType::viewImage()`, safe URL validation, tooltip photos and expandable basket thumbnails.
+
+- Opt-in `holdSeats(10)` with server-side seat holds, a basket countdown, automatic expiry, and checks at checkout.
+
+### Changed
+
+- New table `warp_floor_holds` (migration `update_warp_floor_holds_table`) for `holdSeats()`. It is a new migration only; existing migrations are unchanged. Run `php artisan migrate`.
+
+### Fixed
+
+- In the plan editor, a wall, line or polygon that was still being drawn (points placed, not yet finished with Enter or a double-click) was silently lost: Save was greyed out when it was the only change, Close editor closed the editor without asking, and leaving the page did not warn. Save and Close editor now finish the drawing first, as Enter does (Close editor then asks before discarding it, like any unsaved change), and leaving the page asks first. Esc still throws the drawing away.
+- On the day timeline in the side panel, a very short booking (about 10 minutes) on a day stretched wide by an early or late booking was only a few pixels wide: hard to see and impossible to tap on a phone. A bar is now at least 1rem wide and stays inside the timeline at either end.
+- On the day timeline in the side panel, a short booking (for example one hour) cut the guest's name off with no sign it was cut ("Bri"). The name now ends with an ellipsis (…), hovering shows the full text, and clicking or tapping the bar (or pressing Enter on it) shows the time and full name under the timeline.
 
 ## [1.7.2] - 2026-11-21
 

@@ -43,20 +43,29 @@ class Theater extends FloorPage
 ## Contents
 
 - [Why](#why) · [Features](#features) · [Requirements](#requirements) · [Installation](#installation) ([AI coding assistants](#ai-coding-assistants-laravel-boost))
-- [Usage](#usage): [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) ([Places in code](#places-in-code-seeders-and-tests)) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form)
-- Venues: [Seat maps](#seat-maps) · [Shows](#shows) · [Price categories](#price-categories) · [The basket](#the-basket) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
+- [Usage](#usage): [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) ([Places in code](#places-in-code-seeders-and-tests)) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form) · [Choosing a place in a form](#choosing-a-place-in-a-form) · [One booking, several places](#one-booking-several-places)
+- Venues: [Seat maps](#seat-maps) ([View from the seat](#view-from-the-seat)) · [Shows](#shows) · [Price categories](#price-categories) ([Prices per show](#prices-per-show)) · [The basket](#the-basket) ([Holding seats](#holding-seats), [No single empty seats](#no-single-empty-seats)) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
 - [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage report](#usage-report)
 - [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) ([Testing with tenancy](#testing-with-tenancy)) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
 
-- **Your data stays yours.** Places are your models and bookings are your tables. Warp Floor adds tables for the drawing (plans, the elements on them, and favorites) and nothing else.
+- **Your data stays yours.** Places are your models and bookings are your tables. Warp Floor adds tables for the drawing (plans, the elements on them, and favorites), plus temporary seat holds when enabled.
 - **Venues and workplaces with one plugin.** Curved sections, row letters, seat numbers, price categories and a basket for theaters and arenas; desks with chairs and the faces of who booked them, rooms with their day and check-in for offices.
 - **Fast with large plans.** Only what is on screen is drawn, seats become simple dots when zoomed out, and a spatial index finds what is under the pointer. Thousands of seats pan and zoom smoothly.
 - **The plan is part of the app.** Users with permission create venues from templates, shape sections with sliders, draw walls with doors and windows, and link places to records by dragging them from a list.
 
 ## Features
+
+- **Choose places inside a form.** `FloorPicker` embeds a plan in any Filament form, with single or multiple selection and server validation.
+- **One booking, several places.** `BookingSource::places()` books joined tables or groups of places in one transaction.
+
+- **Prices per show**: override category prices for a matinee or evening, or resolve them with a callback.
+- **No single empty seats**: optionally prevent selections that leave an isolated empty seat, including row ends.
+- **View from the seat**: section or seat photos in tooltips and the basket, with an enlarged preview.
+
+- **Optional seat holds.** `holdSeats(10)` reserves basket seats for ten minutes, with a countdown and checks at checkout.
 
 ![An office floor: desks with chairs and the initials of who booked them, and the side panel of a desk](https://raw.githubusercontent.com/qalainau-labs/filament-warp-floor-docs/main/art/office.png)
 
@@ -399,6 +408,40 @@ ElementType::make('rack')
 - The editor draws the full name, so a name you change there shows at once.
 - It runs once per place when the plan is loaded, so keep it to attributes of the element and the record (no queries per place).
 
+### Choosing a place in a form
+
+`FloorPicker` is a Filament field. It uses the same plan renderer, with zoom and pan, selected-place badges and no editor. Its state is a single value, or an array with `multiple()`.
+
+```php
+use Filament\Schemas\Components\Utilities\Get;
+use Qalainau\FilamentWarpFloor\Forms\FloorPicker;
+use Qalainau\FilamentWarpFloor\Models\FloorPlan;
+use Qalainau\FilamentWarpFloor\Floor;
+use Qalainau\FilamentWarpFloor\Window;
+
+FloorPicker::make('desk_id')
+    ->plan(fn (): ?FloorPlan => FloorPlan::where('name', '4F')->first())
+    // Or ->plans([$fourthFloor, $fifthFloor]) to switch between plans.
+    ->types(['desk'])
+    ->multiple()
+    ->maxItems(4)
+    ->value('record')
+    ->states(fn (Get $get): ?Window => Window::between($get('starts_at'), $get('ends_at')))
+    ->floor(fn (Floor $floor): Floor => $floor->elementTypes([
+        ElementType::make('desk')->model(Desk::class)->titleAttribute('name')
+            ->bookings(BookingSource::make(Reservation::class)->resource('desk_id')),
+    ]));
+```
+
+- `plan()` accepts a `FloorPlan`, its ID or a closure. `plans()` accepts an array of plans or IDs, or a closure returning it. Only the current tenant's visible plans are offered and accepted.
+- `types()` accepts element type names or kind keys. By default, every reservable type in the configured `Floor` is eligible.
+- `multiple()` returns an array; without it the value is scalar. `maxItems()` limits the array on both client and server.
+- `value('record')` (default) returns the linked model's key; `value('element')` returns the `FloorElement` ID; `value('code')` returns its code. Use `element` or `code` for places without models. Codes should uniquely identify places across the offered plans.
+- `states()` optionally returns a `Window` for availability checks. Make the start/end fields `live()` to refresh the diagram when their values change. Booked, partly booked, unavailable and other people's held places cannot be selected. Validation rechecks the window when the form is submitted.
+- `floor()` configures element types, booking sources, availability and optional `holdSeats()` as on a floor page. Unavailable records remain unselectable even without `states()`. Without a window, existing bookings do not restrict selection.
+
+Apply normal field rules such as `required()` as needed. The field validates the submitted values; your resource or form saves them to your own model or relationship.
+
 ### Bookings and states
 
 `bookings()` tells Warp Floor where the bookings of a type are. The booking points at the place in one of three ways:
@@ -445,6 +488,29 @@ The callbacks of an element type (`unavailableWhen()`, `stateUsing()`, `statesUs
 The record, the range and the query are also passed by their type, so `fn (Desk $desk)` and `fn (Window $range)` work
 too. Other classes are made by Laravel's container. An argument that can be given neither way (an untyped `$desk`, a
 model of another class, or a collection with another name) throws an exception that lists the names it can pass.
+
+#### One booking, several places
+
+Use a `BelongsToMany` or `MorphToMany` relationship on your booking model. Its related model is the place model (`Desk`, `Table`, …), or `FloorElement` for places without their own model:
+
+```php
+ElementType::make('table')->model(Table::class)->bookings(
+    BookingSource::make(Reservation::class)
+        ->places('tables', max: 6) // default maximum: 10
+        ->owner('user_id')->person('guest_name')
+        ->schema([
+            TextInput::make('guest_name')->required(),
+            DateTimePicker::make('starts_at')->required(),
+            DateTimePicker::make('ends_at')->required()->after('starts_at'),
+        ]),
+);
+```
+
+For a relationship to `FloorElement`, leave out `model()` on the element type. Provide the booking table and pivot migration in your app; Floor does not create booking tables.
+
+Click a place, then Shift-click further places. On a phone, tap **Add another place** before tapping the next one. The side panel lists the selection; **Book 3 places together** opens one form. All places must share the same booking model and relationship. One transaction validates every place's time, availability, overlap, `onePerPerson()` and policy, then creates one booking and attaches all places. A rejected place is named, and no booking or pivot row is saved. Submitted element IDs are checked against the page's plans, tenant, type and maximum; duplicate IDs are refused.
+
+The booking contributes to the state, person, schedule, Who's in and usage of every related place. With `manageBookings()`, a booking occupying several places offers **Cancel** only; it cannot be moved. Cancel deletes the booking and detaches its places. The existing `resource()`, `morph()` and `element()` APIs keep their single-place behavior.
 
 #### Working out the states of all places at once
 
@@ -571,6 +637,21 @@ ElementType::make('seat')
 
 Single seats (a bar counter, a box) can be placed one by one with the Seat tool.
 
+#### View from the seat
+
+Help visitors judge their view of the stage before choosing a seat. In the editor, select a section or seat and enter an image URL under **View from here** (`props.view`). A section image applies to its seats; a seat image takes priority:
+
+```php
+$section->update(['props' => [...($section->props ?? []), 'view' => '/images/stalls.jpg']]);
+$seat->update(['props' => [...($seat->props ?? []), 'view' => '/images/A-12.jpg']]);
+
+ElementType::make('seat')->viewImage(
+    fn (FloorElement $element): ?string => $element->code === 'A-12' ? '/images/custom.jpg' : null,
+);
+```
+
+A non-null callback URL takes priority over props. Seat tooltips show a small photo; basket rows show a thumbnail that opens **View from :seat**. Only HTTP(S) URLs and relative paths are accepted, including on editor saves; data URLs, protocol-relative URLs and script URLs are discarded. Images are used as `img` sources, never HTML. No image is shown unless configured. Choose photos representative of the actual seat; the plugin does not host or upload them.
+
 ### Shows
 
 `sessions()` replaces the time picker with buttons for the shows. Bookings inside a show's start and end belong to that show. The first show is open when the page loads.
@@ -602,6 +683,26 @@ $plan->update(['categories' => [
 
 `price` is shown as written. When every price in the basket has digits in it, the basket also shows the total, written like the first price.
 
+#### Prices per show
+
+Use the same plan for shows with different prices. Set only the category keys that change:
+
+```php
+$floor->sessions([
+    Session::make('mat')->between('2026-12-03 14:00', '2026-12-03 17:00')
+        ->prices(['S' => '$90', 'A' => '$60']),
+    Session::make('eve')->between('2026-12-03 18:00', '2026-12-03 21:00')
+        ->prices(['S' => '$120']),
+]);
+
+$floor->priceUsing(fn (array $category, ?Session $session): ?string =>
+    $session?->getKey() === 'mat' && $category['key'] === 'B' ? '$40' : null);
+```
+
+The callback receives the original plan category and the selected session (null without shows). A non-null result wins; otherwise the session override wins, then the plan price. Unlisted keys keep the plan price. Chips, basket rows, numeric totals and tooltips refresh with the selected show. The editor continues to edit the original plan prices. With neither option the existing prices remain unchanged.
+
+Prices are **display only**: `BookingSource` has no dedicated price field or price injection hook. Set and validate any charge or stored amount in your own booking model/application; do not trust a displayed basket total as a payment amount. The existing total rule still applies: every basket price must contain digits.
+
 ### The basket
 
 On a plan with price categories, clicking a free seat puts it in the basket on the right instead of opening a form. In the "Best seats" box above the basket, choose how many seats you want and press "Pick 3 seats": it takes that many seats, side by side in one row, in the first category (or the categories you filtered), preferring rows near the front and the middle of a row, and puts them in the basket in place of the seats there. "Book 3 seats" at the bottom opens one form for all of them: the form of the seat type's booking source, saved once per seat. If someone took a seat in the meantime, nothing is booked and the taken seats are named.
@@ -611,6 +712,32 @@ The basket holds up to 50 seats. For a page where people buy their own tickets, 
 ```php
 $floor->basketLimit(6);    // up to 6 seats per booking
 ```
+
+#### No single empty seats
+
+To avoid unsellable single seats between bookings or at row ends, opt in:
+
+```php
+$floor->noSingleSeatGaps(); // ->noSingleSeatGaps(false) turns it off
+```
+
+Within each section and row, reservations, active holds and basket seats count as occupied. Best seats skips runs that would create a single empty seat; if none fit it shows the existing unavailable notice. Manual selection is checked when **Book N seats** is pressed, and checked again on the server before anything is booked. Selecting all remaining seats is allowed. Different sections across an aisle are separate rows. Existing isolated seats elsewhere do not prevent a selection that creates no new isolated seat.
+
+The rule uses `props.row` and `props.slot` (physical seat order), falling back to `props.number` for individually placed seats. It is disabled by default and does not change how holds are acquired or expire. A basket can temporarily contain an invalid choice while visitors finish selecting seats; checkout enforces the rule.
+
+#### Holding seats
+
+For ticket sales with a payment step, enable temporary holds so another buyer cannot choose the same seat while the booking form is open:
+
+```php
+$floor->holdSeats(10);
+```
+
+Adding a seat to the basket creates a server-side hold. Other buyers see **Being chosen** and cannot add it. Removing a seat or clearing the basket releases it. The countdown starts with the first seat; adding more seats does not extend it. At zero the basket is cleared and the buyer is asked to choose again. The server checks holds again at checkout and refuses the entire booking if another buyer holds a chosen seat. Successful booking releases the buyer's holds for that plan and show. An expired own hold does not prevent booking a seat that is still free.
+
+Run `php artisan migrate` before enabling this option to create `warp_floor_holds`. The bundled migration is `update_warp_floor_holds_table` (the add_warp_floor_holds_table migration uses the existing `update_` naming convention so unpublished migrations run after `create_warp_floor_tables`). No existing migration changes. Applications that omit `holdSeats()` never read the holds table.
+
+Holds belong to the signed-in user's morph type and key, or to the Laravel session ID for guests. Each show has its own holds; without `sessions()`, the selected start and end define the key. Expired holds are ignored on reads and deleted when a new hold is created, so no scheduler is needed. The server also enforces `basketLimit()`.
 
 ### Standing areas
 
@@ -1411,8 +1538,8 @@ await expect(page.locator('.fi-warp-flr-a11y [data-code="A-05-3"]')).toHaveAttri
 
 ## Limitations
 
-- A booking belongs to one place. Bookings that span several places are not shown on the plan.
-- The basket books seats for one show at a time and does not hold seats while the form is open; a seat taken in the meantime stops the whole booking.
+- Single-place sources use `resource()`, `morph()` or `element()`. Opt into multi-place bookings with `places()`; multi-place bookings can be cancelled but cannot be moved.
+- The basket books seats for one show at a time and does not hold seats while the form is open unless `holdSeats()` is enabled; a seat taken in the meantime stops the whole booking.
 - Backgrounds from another domain are left out of printouts and PNG files unless that domain allows CORS.
 - PDF floor plans are converted to an image when they are uploaded; the PDF itself is not kept.
 
