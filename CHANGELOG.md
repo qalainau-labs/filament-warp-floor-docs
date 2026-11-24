@@ -5,6 +5,21 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-11-24
+
+### Added
+
+- `Floor::texts()` words some of the plugin's texts for a floor's own places — the multi-place buttons, the empty side panel, the search box and the place sections of the "How to use" box (`help.view.pick`, `help.view.look`, `help.view.keyboard`, `help.view.keyboard_look`, each a heading with pairs of texts) — so a restaurant can say "table" instead of "place". Keys left out keep the plugin's text; unknown keys and badly shaped sections throw.
+
+### Fixed
+
+- `FloorPicker` showed the plan's name twice when a place's name already starts with it (plan "3F", desk "3F B-02" or "3F-A-21" read "3F 3F B-02" in the badge, the hover label and the "already booked" message). Such names are now shown as they are.
+- `FloorPicker`: the name of the place under the pointer showed as a dark bar along the bottom of the plan and covered the bottom row of places. It now shows next to the pointer (above it in the lower part of the plan, to its left near the right edge).
+- `FloorPicker`: in dark mode, "Or choose from a list" under the plan was dark grey on a dark background and hard to read.
+- The search box was read out to screen readers as "Find a place or a person" on floors whose search does not find people. It now says "Find a place" there, like the hint in the box (new text key `search.label_people` for floors that do find people).
+- Seat holds (`holdSeats()`): a guest who held seats and then signed in saw them as "Being chosen" by someone else, because Laravel gives the session a new ID on sign-in and guest holds belonged to that ID. Guest holds now belong to a key kept in the session's data, so they stay the buyer's after signing in. Holds made before the update still count as the guest's own until they expire.
+- Translations: pt_BR says "assentos" (not "lugares") in the seat basket limits, ko uses the same polite form (주세요) in the picker, seat-hold and single-seat messages, and zh_CN / zh_TW use one word for the standing area in the basket hint.
+
 ## [1.8.0] - 2026-11-23
 
 ### Added

@@ -46,7 +46,7 @@ class Theater extends FloorPage
 - [Usage](#usage): [Where to put a floor](#where-to-put-a-floor) · [Plans](#plans) ([Places in code](#places-in-code-seeders-and-tests)) · [Element types and kinds](#element-types-and-kinds) · [The size of place names](#the-size-of-place-names) · [Bookings and states](#bookings-and-states) · [Booking form](#booking-form) · [Choosing a place in a form](#choosing-a-place-in-a-form) · [One booking, several places](#one-booking-several-places)
 - Venues: [Seat maps](#seat-maps) ([View from the seat](#view-from-the-seat)) · [Shows](#shows) · [Price categories](#price-categories) ([Prices per show](#prices-per-show)) · [The basket](#the-basket) ([Holding seats](#holding-seats), [No single empty seats](#no-single-empty-seats)) · [Standing areas](#standing-areas) · [The box office](#the-box-office)
 - Workplaces: [The side panel](#the-side-panel) · [Who booked it](#who-booked-it) · [Check-in](#check-in) · [Favorites, features and search](#favorites-features-and-search) · [Repeat bookings](#repeat-bookings) · [Moving and cancelling bookings](#moving-and-cancelling-bookings)
-- [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage report](#usage-report)
+- [Calling your places by their name](#calling-your-places-by-their-name) · [Your own content in the side panel](#your-own-content-in-the-side-panel) · [Menus and tooltips](#menus-and-tooltips) · [Editor](#editor) · [Templates](#templates) · [Venues and floors](#venues-and-floors) · [Usage report](#usage-report)
 - [Backgrounds and PDF floor plans](#backgrounds-and-pdf-floor-plans) · [Tenancy](#tenancy) ([Testing with tenancy](#testing-with-tenancy)) · [Help for your users](#help-for-your-users) · [Keyboard](#keyboard) · [Where places are on the screen](#where-places-are-on-the-screen-javascript) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Why
@@ -737,7 +737,7 @@ Adding a seat to the basket creates a server-side hold. Other buyers see **Being
 
 Run `php artisan migrate` before enabling this option to create `warp_floor_holds`. The bundled migration is `update_warp_floor_holds_table` (the add_warp_floor_holds_table migration uses the existing `update_` naming convention so unpublished migrations run after `create_warp_floor_tables`). No existing migration changes. Applications that omit `holdSeats()` never read the holds table.
 
-Holds belong to the signed-in user's morph type and key, or to the Laravel session ID for guests. Each show has its own holds; without `sessions()`, the selected start and end define the key. Expired holds are ignored on reads and deleted when a new hold is created, so no scheduler is needed. The server also enforces `basketLimit()`.
+Holds belong to the signed-in user's morph type and key, or, for guests, to a random key the plugin keeps in the Laravel session. A guest who signs in during checkout keeps their seats: Laravel gives the session a new ID when someone signs in, but the session's data (and so the key) stays. Signing out ends the session, and with it the guest's claim; the seats free up when the countdown ends. Each show has its own holds; without `sessions()`, the selected start and end define the key. Expired holds are ignored on reads and deleted when a new hold is created, so no scheduler is needed. The server also enforces `basketLimit()`.
 
 ### Standing areas
 
@@ -964,6 +964,46 @@ $floor
 ```
 
 The party size goes into the booking source's `people()` column. `onSeated(fn (Model $party, Model $booking) => ...)` replaces the default (deleting the party), and `modifyQueryUsing()` narrows the list (today only, for example). In a panel with tenancy, the list is scoped to the team like the bookings.
+
+### Calling your places by their name
+
+The plugin's own texts say "place", because a plan can hold desks, rooms, tables or bays. When a floor has only one kind, `texts()` lets you word a few of them for it, so a restaurant says "table" everywhere:
+
+```php
+$floor->texts([
+    'multiple.add' => __('restaurant.add_table'),               // Add another table
+    'multiple.book' => __('restaurant.book_tables'),            // Book :count tables together
+    'panel.empty' => __('restaurant.click_a_table'),            // Click a table on the plan to see its evening.
+    'search.label_people' => __('restaurant.find_table_or_guest'), // Find a table or a guest
+    'search.placeholder_people' => __('restaurant.find_table_or_guest_hint'),
+    'help.view.pick' => [                                       // A section of the “How to use” box
+        'heading' => __('restaurant.help.heading'),             // Find and book a table
+        'items' => [
+            [__('restaurant.help.click'), __('restaurant.help.click_result')],  // Click a table → See its evening and book it
+            [__('restaurant.help.search'), __('restaurant.help.search_result')], // The search box → Find a table or a guest by name
+        ],
+    ],
+]);
+```
+
+| Key | Where it shows | Plugin default (en) |
+|---|---|---|
+| `multiple.add` | Button in the side panel, with `BookingSource::places()` | Add another place |
+| `multiple.book` | Button and form heading for several places; `:count` is the number of places | Book :count places together |
+| `panel.empty` | Side panel while nothing is selected, on a plan with bookings | Click a place on the plan to see its day and book it. |
+| `panel.empty_view` | Side panel while nothing is selected, on a plan without bookings | Click a place on the plan to see its details. |
+| `search.label` | Label of the search box (read by screen readers) | Find a place |
+| `search.label_people` | Label of the search box when it also finds people (a booking source with `person()`) | Find a place or a person |
+| `search.placeholder` | Hint in the search box | Find a place… |
+| `search.placeholder_people` | Hint in the search box when it also finds people | Find a place or a person… |
+| `help.view.pick` | “How to use” box: the section for a plan with bookings | Find and book a place |
+| `help.view.look` | “How to use” box: the section for a plan without bookings | Find places and see their details |
+| `help.view.keyboard` | “How to use” box: keyboard, on a plan with bookings | With the keyboard |
+| `help.view.keyboard_look` | “How to use” box: keyboard, on a plan without bookings | With the keyboard |
+
+A `help.view.*` key replaces the whole section: give `heading` and `items`, a list of pairs (what you do, what happens). Write keys between backticks (`` `Enter` ``) to show them as keys. The other sections (moving around, colors, seats) do not name places and stay as they are.
+
+Pass translated strings (or closures that return them) — the plugin does not translate them for you. Keys you leave out keep the plugin's text in the user's language, and any other key throws an `InvalidArgumentException`. `:count` is replaced as it is, so write a text that reads well for 2 and more (the button shows from the second place).
 
 ## Your own content in the side panel
 
