@@ -5,7 +5,12 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.10.1] - 2026-11-27
+
+### Fixed
+
+- A floor on a page of one record (a resource page with `InteractsWithRecord`) could run your `recordActions()` on the page's own record when the place had just been deleted, was on a plan the page does not show, or no place was given. Those actions now refuse to open.
+- The plan editor's actions (edit, delete, save as template, new plan from) answered with a server error when the browser sent a list instead of a plan ID. They now treat it as no plan.
 
 ## [1.10.0] - 2026-11-26
 
