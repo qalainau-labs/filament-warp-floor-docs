@@ -439,6 +439,7 @@ FloorPicker::make('desk_id')
 - `value('record')` (default) returns the linked model's key; `value('element')` returns the `FloorElement` ID; `value('code')` returns its code. Use `element` or `code` for places without models. Codes should uniquely identify places across the offered plans.
 - `states()` optionally returns a `Window` for availability checks. Make the start/end fields `live()` to refresh the diagram when their values change. Booked, partly booked, unavailable and other people's held places cannot be selected. Validation rechecks the window when the form is submitted.
 - `floor()` configures element types, booking sources, availability and optional `holdSeats()` as on a floor page. Unavailable records remain unselectable even without `states()`. Without a window, existing bookings do not restrict selection.
+- The plan is 22rem tall by default. For a large plan whose place names get cut off (`3F A…`), give it more room with the floor's `height()`: `->floor(fn (Floor $floor): Floor => $floor->height(600)->elementTypes([...]))` (pixels, or a CSS length such as `'32rem'`). People can also zoom with the + and − buttons, the mouse wheel or two fingers.
 
 Apply normal field rules such as `required()` as needed. The field validates the submitted values; your resource or form saves them to your own model or relationship.
 

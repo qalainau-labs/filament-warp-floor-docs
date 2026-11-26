@@ -5,6 +5,16 @@ All notable changes to `qalainau/filament-warp-floor` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.9.1] - 2026-11-26
+
+### Fixed
+
+- **`FloorPicker` keeps its zoom**: zooming in on the plan of a `FloorPicker` field was reset to the whole plan whenever something changed an attribute of the field's hidden data, such as a browser extension or a screenshot tool. The plan is now redrawn only when the form sends new data.
+- **`FloorPicker` uses the floor's `height()`**: `->floor(fn (Floor $floor): Floor => $floor->height(600))` now sets the height of the plan in the field, so large plans can be shown big enough to read the place names. Without it the plan stays 22rem tall.
+- **Who's where lists bookings with the same start time in a fixed order**: bookings are now ordered by start time, then ID, before the 1,000-booking limit, so on PostgreSQL the same places no longer swap order between page loads or drop in and out at the limit.
+
 ## [1.9.0] - 2026-11-24
 
 ### Added
