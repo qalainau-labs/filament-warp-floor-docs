@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-26
+
+### Added
+
+- **`FloorPicker` legend**: when `states()` returns a window, a legend under the plan shows the states of the offered places with the floor page's swatches and counts (*Available 28 · Booked 23 · Unavailable 1*), and how a chosen place looks once one is picked. Before, the green outline, the grey fill and the hatching could not be read from the screen.
+
+### Changed
+
+- **Names that do not fit drop the words all places of their type share**: when every place of one type on a plan starts with the same words (`3F B-01`, `3F B-02` …), a name too wide for its place is drawn without them (`B-02`) instead of `3F B-…`, which hid the part that tells places apart. Names that fit, hover labels, side panels, badges and lists keep the full name. `LabelFit::Shrink` is unchanged.
+- **`FloorPicker` list buttons say why they are grey**: in "Or choose from a list", a place that cannot be picked shows the reason after its name (*3F A-01 · Booked*). Before, the reason was only in a tooltip, which phones do not show.
+
+### Fixed
+
+- **"How to use" only describes the time picker the plan has**: the plugin's own "Find and book a place" section started with "The days above the plan" on every plan. It now starts with "Now" and "Choose a time" on `hourly()` plans, leaves the line out on plans without a time picker (and hides it while a plan does not show one), and keeps the days line on plans with a day strip. Sections worded with `Floor::texts()` are shown as given. New text key: `help.hours_item`.
+
 ## [1.9.1] - 2026-11-26
 
 ### Fixed

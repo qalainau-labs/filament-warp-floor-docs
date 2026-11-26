@@ -4,6 +4,7 @@ Before each release is tagged, the test suite runs on the combinations of PHP, L
 
 | Version | Tested | Combinations |
 | --- | --- | --- |
+| [1.10.0](1.10.0.md) | 2026-11-26 | PHP 8.3, 8.4, 8.5 × Laravel 12, 13 × 7 databases |
 | [1.9.1](1.9.1.md) | 2026-11-26 | PHP 8.3, 8.4, 8.5 × Laravel 12, 13 × 7 databases |
 | [1.9.0](1.9.0.md) | 2026-11-24 | PHP 8.3, 8.4, 8.5 × Laravel 12, 13 × 7 databases |
 | [1.8.0](1.8.0.md) | 2026-11-23 | PHP 8.3, 8.4, 8.5 × Laravel 12, 13 × 7 databases |
