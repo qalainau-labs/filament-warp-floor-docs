@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.3] - 2026-11-28
+
+### Fixed
+
+- On a busy server, the floor plan could stop working when an answer from the server went missing: searching for a place, opening a place's right-click menu, checking in, cancelling or moving a booking, saving the plan in the editor, or changing its background. The plan now asks again for anything it only reads (search, menus, the side panel, tooltips, the waitlist, templates), and never sends a change twice. When a change got no answer, it says "We could not confirm that this went through" and loads the current state again; in the editor it says the plan may not have been saved and offers to reload it. Also, with no answer, the side panel no longer stays empty and loading, a favorite is no longer switched off, the waitlist and saved templates are no longer emptied, and a template is no longer reported as deleted.
+
 ## [1.10.2] - 2026-11-27
 
 ### Fixed
