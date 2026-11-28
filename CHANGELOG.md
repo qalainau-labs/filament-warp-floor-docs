@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.4] - 2026-11-28
+
+### Fixed
+
+- When the server's reply to removing a party from the waitlist went missing, the waitlist was reloaded without a word, although the party may already have been removed. It now says "We could not confirm that this went through. Check the current state before trying again." (the existing `notice.reply_unknown` text) and shows the waitlist the server has.
+
 ## [1.10.3] - 2026-11-28
 
 ### Fixed
